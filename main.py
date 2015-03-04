@@ -23,9 +23,6 @@ REFERENCE:
 
 
 TODO:
-    periodic task also sends alert (email) if the builds timestamp exceeds some duration (60min)
-        this will later do build.stop() to abort the build
-
     experiment with sms alerts
 
     would be nice to have longer-term (24h, 48, 72hs overviews), all trends

@@ -41,6 +41,7 @@ def get_localized_timestamp_str(stamp):
 
 def send_email(subject=None, body=None):
     log.info("Sending email:\n%s\n%s" % (subject, body))
+    subject = "[jenkins-watcher] %s" % subject
     mail_args = dict(sender=email_sender,
                      subject=subject,
                      body=body,

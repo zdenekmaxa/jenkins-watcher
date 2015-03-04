@@ -10,6 +10,7 @@ import datetime
 import json
 import pprint
 import logging as log
+import pytz
 
 from google.appengine.ext import ndb
 
@@ -28,6 +29,7 @@ class DataOverview(ndb.Model):
 class JenkinsInterface(object):
 
     overview_id_key = 1
+    current_build_duration_threshold = 20 * 60  # 20mins, in seconds
 
     def __init__(self,
                  jenkins_url=None,
@@ -46,6 +48,33 @@ class JenkinsInterface(object):
     def get_total_queued_jobs(self):
         return len(self.server.get_queue())
 
+    def _handle_log_running_builds(self, build=None, resp={}, build_timestamp=None):
+        """
+        Check duration of the build build.
+        Dictionary resp is updated about actions performed in this method.
+
+        """
+        now = datetime.datetime.utcnow()  # there is no timezone info, putting UTC
+        duration = pytz.utc.localize(now) - build_timestamp
+        if duration.total_seconds() > self.current_build_duration_threshold:
+            msg = ("Build '%s' is running over %s seconds, stopping ..." %
+                   (build, self.current_build_duration_threshold))
+            log.warn(msg)
+            # TODO:
+            # proper stopping of jobs
+            # ret = build.stop()
+            ret = True
+
+            # TODO
+            # do differently = return values to update reps, no side effects
+            # add always duration info, exeeced=false, true, cancelled = yes, true
+
+            resp["duration_threshold"] = self.current_build_duration_threshold
+            resp["duration"] = duration.total_seconds()
+            resp["cancelled"] = ret
+            subject = "too long build %s" % build
+            send_email(subject=subject, body=msg)
+
     def get_running_jobs_info(self):
         resp = []
         for job_name in self.job_names:
@@ -58,15 +87,11 @@ class JenkinsInterface(object):
                 last_build_id = job.get_last_buildnumber()
                 r["last_build_id"] = last_build_id
                 build = job.get_build(last_build_id)
-                # get_timestamp returns this type of data:
+                # get_timestamp returns this type of data, is in UTC:
                 # datetime.datetime(2015, 3, 3, 19, 41, 56, tzinfo=<UTC>) (is not JSON serializable)
-
-                # TODO:
-                # implement checker of the 'start_timestamp' values ... the duration threshold
-                # here
-
                 ts = build.get_timestamp()
                 r["start_timestamp"] = get_localized_timestamp_str(ts)
+                self._handle_log_running_builds(build=build, resp=r, build_timestamp=ts)
                 resp.append(r)
         return resp
 
@@ -86,7 +111,7 @@ class JenkinsInterface(object):
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
         log.debug("Finished refresh overview data task: '%s'" % get_current_timestamp_str())
-        send_email(subject="jenkins-watcher data update", body=data_formatted)
+        #send_email(subject="data update", body=data_formatted)
 
     @staticmethod
     @ndb.transactional()
