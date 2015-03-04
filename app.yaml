@@ -1,0 +1,38 @@
+version: v0-1
+runtime: python27
+api_version: 1
+threadsafe: true
+
+default_expiration: "1s"
+
+libraries:
+  - name: webapp2
+    version: latest
+  - name: pycrypto
+    version: latest
+  - name: setuptools
+    version: latest
+
+builtins:
+  - deferred: on
+
+skip_files:
+  - ^(.*/)?#.*#
+  - ^(.*/)?.*~
+  - ^(.*/)?.*\.py[co]
+  - ^(.*/)?.*\.sw[op]
+  - ^(.*/)?.*/RCS/.*
+  - ^(.*/)?\..*
+
+handlers:
+  - url: /refresh
+    script: main.app
+    login: admin
+    secure: always
+
+  - url: /.*
+    script: main.app
+    secure: always
+    # necessary, otherwise, even if logged in,
+    # users.get_current_user() responds None
+    login: required

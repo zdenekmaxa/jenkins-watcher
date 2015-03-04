@@ -1,0 +1,4 @@
+cron:
+- description: Retrieve data from Jenkins CI server
+  url: /refresh
+  schedule: every 10 minutes
