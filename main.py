@@ -24,12 +24,11 @@ REFERENCE:
 
 TODO:
     periodic task also sends alert (email) if the builds timestamp exceeds some duration (60min)
-        this will later do build.stop() to abort the build ; experiment with sms alert
+        this will later do build.stop() to abort the build
+
+    experiment with sms alerts
 
     would be nice to have longer-term (24h, 48, 72hs overviews), all trends
-
-    user access control, by domain restriction
-        currentuser=users.get_current_user().email()
 
     email alert on every exception/failure in the application, decorators?
 
@@ -43,25 +42,27 @@ import logging as log
 
 import webapp2
 from google.appengine.ext import deferred
-from google.appengine.api import users
 
 from config import egg_files
 for egg_file in egg_files:
     sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
 
 from jenkins import refresh, JenkinsInterface
-from utils import get_current_timestamp_str
+from utils import get_current_timestamp_str, access_restriction
 
 
 class RequestHandler(webapp2.RequestHandler):
+    @access_restriction
     def index(self):
         # there is no timezone info there, maybe it's deeper
         # log.info("Received request, headers:\n%s" % self.request.headers.items())
+        # returns Python dictionary
         resp = JenkinsInterface.get_overview_data()
         resp["current_time"] = get_current_timestamp_str()
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
+    @access_restriction
     def refresh(self):
         msg = "Running refresh task (%s) ..." % get_current_timestamp_str()
         log.info(msg)

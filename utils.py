@@ -9,8 +9,11 @@ import pytz
 import logging as log
 
 from google.appengine.api import mail
+from google.appengine.api import users
 
 from config import email_recipients, email_sender
+from config import access_allowed_domains, access_allowed_users
+
 
 LOCAL = pytz.timezone("Europe/Prague")
 FORMAT = "%Y-%m-%d %H:%M:%S"
@@ -46,3 +49,45 @@ def send_email(subject=None, body=None):
         mail.send_mail(**mail_args)
     except:
         log.exception(str(mail_args))
+
+
+def access_restriction(handler_method):
+    """
+    A decorator to require that a user be logged in to access the handler.
+
+    To use it, decorate your get() method like this::
+
+        @access_restriction
+        def get(self):
+            user = users.get_current_user(self)
+            self.response.out.write('Hello, ' + user.nickname())
+
+    We will redirect to a login page if the user is not logged in. We always
+    redirect to the request URI, and Google Accounts only redirects back as
+    a GET request, so this should not be used for POSTs.
+
+    """
+    def check_access_granted(user_email):
+        if user_email in access_allowed_users:
+            return True
+        user_name, user_domain = user_email.split('@')
+        for domain in access_allowed_domains:
+            if domain == user_domain:
+                return True
+        return False
+
+    def check_login(self, *args, **kwargs):
+        user = users.get_current_user()
+        if not user:
+            # doesn't appear in the app engine logs ... weird
+            log.info("Access from anonymous user, redirecting to login page.")
+            return self.redirect(users.create_login_url(self.request.url))
+        if check_access_granted(user.email()):
+            log.info("Access from user '%s' ... granted." % user.email())
+            handler_method(self, *args, **kwargs)
+        else:
+            msg = "User '%s' access denied." % user.email()
+            log.warn(msg)
+            self.abort(401, detail=msg)
+
+    return check_login
