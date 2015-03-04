@@ -13,3 +13,9 @@ access_token = ACCESS_TOKEN
 
 # jenkins job/project names
 job_names = [JENKINS_PROJECT_1, JENKINS_PROJECT_2, JENKINS_PROJECT_2]
+
+domains_allow_access = [DOMAIN_1, DOMAIN_2]
+
+email_recipients = [EMAIL_1, EMAIL_2]
+
+email_sender = "zden.maxa@gmail.com"

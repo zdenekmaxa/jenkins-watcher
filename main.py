@@ -14,17 +14,15 @@ NOTES:
     Deadline exceeded while waiting for HTTP response from URL: XXXXX
     solved by patching jenkinsappi and requests lib (libs/README.md)
 
+    The server works in CET/CEST times, talk the same (convert to this timezome
+        times as retrieved from the server or datetime timestamps which are UTC).
+
 
 REFERENCE:
     self.request.body
 
 
 TODO:
-    timezone - correct time
-        check timezone, transform into CET/CEST
-        get automatically correct according to current local timezone (of the caller)
-        check pytz
-
     periodic task also sends alert (email) if the builds timestamp exceeds some duration (60min)
         this will later do build.stop() to abort the build ; experiment with sms alert
 
@@ -33,6 +31,8 @@ TODO:
     user access control, by domain restriction
         currentuser=users.get_current_user().email()
 
+    email alert on every exception/failure in the application, decorators?
+
 """
 
 
@@ -40,7 +40,6 @@ import os
 import json
 import sys
 import logging as log
-import datetime
 
 import webapp2
 from google.appengine.ext import deferred
@@ -50,7 +49,8 @@ from config import egg_files
 for egg_file in egg_files:
     sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
 
-from jenkins import get_jenkins_interface, refresh, JenkinsInterface
+from jenkins import refresh, JenkinsInterface
+from utils import get_current_timestamp_str
 
 
 class RequestHandler(webapp2.RequestHandler):
@@ -58,13 +58,12 @@ class RequestHandler(webapp2.RequestHandler):
         # there is no timezone info there, maybe it's deeper
         # log.info("Received request, headers:\n%s" % self.request.headers.items())
         resp = JenkinsInterface.get_overview_data()
-        resp["current_time"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        resp["current_time"] = get_current_timestamp_str()
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
     def refresh(self):
-        time_now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        msg = "Running refresh task (%s) ..." % time_now
+        msg = "Running refresh task (%s) ..." % get_current_timestamp_str()
         log.info(msg)
         deferred.defer(refresh)
         self.response.out.write(msg)
