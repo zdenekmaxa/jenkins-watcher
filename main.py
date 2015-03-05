@@ -23,11 +23,19 @@ REFERENCE:
 
 
 TODO:
-    experiment with sms alerts
+    general activity summary email every 12 hours or so ... how
+    many updates - heartbeat check
 
-    would be nice to have longer-term (24h, 48, 72hs overviews), all trends
+    have longer-term (24h, 48, 72hs overviews), all trends
+        periodically retrieve data on all builds:
+        status, duration, timestamp ; result: which jobs failed, P:num, F:num, S:num, E:num
+        on frontend horizontal scroll, colour coding
+        try retrieving everything in a stand-alone script, processing data,
+        then loading into datastore
 
     email alert on every exception/failure in the application, decorators?
+
+    experiment with sms alerts
 
 """
 

@@ -26,10 +26,18 @@ class DataOverview(ndb.Model):
     data = ndb.JsonProperty(required=True)
 
 
+class ActivitySummary(ndb.Model):
+    update_counter = ndb.StringProperty()
+    update_last_time = ndb.DateTimeProperty()
+
+
 class JenkinsInterface(object):
 
     overview_id_key = 1
-    current_build_duration_threshold = 20 * 60  # 20mins, in seconds
+    # 25mins - email will be send
+    current_build_duration_threshold_soft = 25  # minutes
+    # 50mins - the build is really getting canceled
+    current_build_duration_threshold_hard = 50  # minutes
 
     def __init__(self,
                  jenkins_url=None,
@@ -48,32 +56,54 @@ class JenkinsInterface(object):
     def get_total_queued_jobs(self):
         return len(self.server.get_queue())
 
-    def _handle_log_running_builds(self, build=None, resp={}, build_timestamp=None):
+    def check_running_builds(self,
+                             job_name=None,
+                             build=None,
+                             build_timestamp=None,
+                             current_build_id=-1):
         """
         Check duration of the build build.
         Dictionary resp is updated about actions performed in this method.
 
         """
+        resp = {}
+        console_url = "%s/job/%s/%s/console" % (self.jenkins_url, job_name, current_build_id)
         now = datetime.datetime.utcnow()  # there is no timezone info, putting UTC
         duration = pytz.utc.localize(now) - build_timestamp
-        if duration.total_seconds() > self.current_build_duration_threshold:
-            msg = ("Build '%s' is running over %s seconds, stopping ..." %
-                   (build, self.current_build_duration_threshold))
+        resp["duration"] = str(duration)
+        resp["stop_threshold_minutes"] = self.current_build_duration_threshold_hard
+        resp["email_notification"] = False
+        if duration.total_seconds() > self.current_build_duration_threshold_hard * 60:
+            ret = build.stop()
+            time.sleep(10)
+            status = build.get_status()
+            msg = (("Build '%s' has been running for more than %s minutes.\n"
+                    "duration: %s\nconsole output: %s\nstopping ... current status: %s") %
+                    (build,
+                     self.current_build_duration_threshold_hard,
+                     str(duration),
+                     console_url,
+                     status))
+            resp["stop_call_response"] = ret
+            resp["current_status"] = status
+            resp["email_notification"] = True
+
+        if duration.total_seconds() > self.current_build_duration_threshold_soft * 60:
+            msg = (("Build '%s' has been running for more than %s minutes.\n"
+                    "duration: %s\nconsole output: %s\n[soft threshold, no action taken]") %
+                    (build,
+                     self.current_build_duration_threshold_soft,
+                     str(duration),
+                     console_url))
+            resp["email_notification"] = True
+
+        if resp["email_notification"]:
             log.warn(msg)
-            # TODO:
-            # proper stopping of jobs
-            # ret = build.stop()
-            ret = True
-
-            # TODO
-            # do differently = return values to update reps, no side effects
-            # add always duration info, exeeced=false, true, cancelled = yes, true
-
-            resp["duration_threshold"] = self.current_build_duration_threshold
-            resp["duration"] = duration.total_seconds()
-            resp["cancelled"] = ret
+            formatted_data = pprint.pformat(resp)
+            log.debug(formatted_data)
             subject = "too long build %s" % build
-            send_email(subject=subject, body=msg)
+            send_email(subject=subject, body=msg + "\n\n" + formatted_data)
+        return resp
 
     def get_running_jobs_info(self):
         resp = []
@@ -91,7 +121,11 @@ class JenkinsInterface(object):
                 # datetime.datetime(2015, 3, 3, 19, 41, 56, tzinfo=<UTC>) (is not JSON serializable)
                 ts = build.get_timestamp()
                 r["start_timestamp"] = get_localized_timestamp_str(ts)
-                self._handle_log_running_builds(build=build, resp=r, build_timestamp=ts)
+                result = self.check_running_builds(job_name=job_name,
+                                                   build=build,
+                                                   build_timestamp=ts,
+                                                   current_build_id=last_build_id)
+                r.update(result)
                 resp.append(r)
         return resp
 
