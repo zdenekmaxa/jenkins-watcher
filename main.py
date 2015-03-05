@@ -59,7 +59,6 @@ class RequestHandler(webapp2.RequestHandler):
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
-    @access_restriction
     def refresh(self):
         msg = "Running refresh task (%s) ..." % get_current_timestamp_str()
         log.info(msg)
