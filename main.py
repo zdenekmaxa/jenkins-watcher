@@ -23,8 +23,6 @@ REFERENCE:
 
 
 TODO:
-    email alert on every exception/failure in the application, decorators?
-
     have longer-term (24h, 48, 72hs overviews), all trends
         periodically retrieve data on all builds:
         status, duration, timestamp ; result: which jobs failed, P:num, F:num, S:num, E:num

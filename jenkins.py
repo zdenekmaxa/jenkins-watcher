@@ -19,7 +19,7 @@ from jenkinsapi.custom_exceptions import NoBuildData
 
 from config import user_name, access_token, job_names, jenkins_url
 from utils import get_localized_timestamp_str, get_current_timestamp_str
-from utils import send_email
+from utils import send_email, exception_catcher
 
 
 class DataOverview(ndb.Model):
@@ -178,6 +178,7 @@ class JenkinsInterface(object):
         overview = DataOverview(id=self.overview_id_key, data=data)
         overview.put()
 
+    @exception_catcher
     def refresh_overview_data(self):
         log.info("Start refresh overview data task: '%s'" % get_current_timestamp_str())
         data = dict(total_queued_jobs=self.get_total_queued_jobs(),

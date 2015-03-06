@@ -4,9 +4,11 @@ Collection of helper goodies.
 """
 
 
+import sys
 import datetime
 import pytz
 import logging as log
+import traceback
 
 from google.appengine.api import mail
 from google.appengine.api import users
@@ -94,3 +96,25 @@ def access_restriction(handler_method):
             self.abort(401, detail=msg)
 
     return check_login
+
+
+def exception_catcher(handler_method):
+    """
+    Used as decorator, critical section is run from here in the
+    try-except block and an email is sent if an exception occurs.
+
+    Not designed for tested calls which return values each other.
+    NoneType will be returned.
+
+    """
+    def inner(*args, **kwargs):
+        try:
+            handler_method(*args, **kwargs)
+        except Exception as ex:
+            subject = "exception occurred"
+            # trace = ''.join(traceback.format_exception(*sys.exc_info()))
+            body = str(ex) + "\n\n" + traceback.format_exc()
+            send_email(subject=subject, body=body)
+            raise
+
+    return inner
