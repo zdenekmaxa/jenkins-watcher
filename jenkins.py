@@ -34,6 +34,7 @@ class ActivitySummary(ndb.Model):
     sent_emails_counter_total = ndb.IntegerProperty(default=0)
     # since last summary email
     sent_emails_counter = ndb.IntegerProperty(default=0)
+    stopped_builds_counter_total = ndb.IntegerProperty(default=0)
 
     @staticmethod
     @ndb.transactional()
@@ -61,12 +62,20 @@ class ActivitySummary(ndb.Model):
 
     @staticmethod
     @ndb.transactional()
+    def increase_stopped_builds_counter():
+        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
+        data.stopped_builds_counter_total += 1
+        data.put()
+
+    @staticmethod
+    @ndb.transactional()
     def get_data():
         data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
         r = dict(overview_update_counter_total=data.overview_update_counter_total,
                  overview_update_counter=data.overview_update_counter,
                  sent_emails_counter_total=data.sent_emails_counter_total,
-                 sent_emails_counter=data.sent_emails_counter)
+                 sent_emails_counter=data.sent_emails_counter,
+                 stopped_builds_counter_total=data.stopped_builds_counter_total)
         return r
 
 
@@ -109,18 +118,20 @@ class JenkinsInterface(object):
         console_url = "%s/job/%s/%s/console" % (self.jenkins_url, job_name, current_build_id)
         now = datetime.datetime.utcnow()  # there is no timezone info, putting UTC
         duration = pytz.utc.localize(now) - build_timestamp
-        resp["duration"] = str(duration)
+        duration_str = str(duration).split('.')[0]
+        resp["duration"] = duration_str
         resp["stop_threshold_minutes"] = self.current_build_duration_threshold_hard
         resp["email_notification"] = False
         if duration.total_seconds() > self.current_build_duration_threshold_hard * 60:
             ret = build.stop()
+            ActivitySummary.increase_stopped_builds_counter()
             time.sleep(10)
             status = build.get_status()
             msg = (("Build '%s' has been running for more than %s minutes.\n"
                     "duration: %s\nconsole output: %s\nstopping ... current status: %s") %
                     (build,
                      self.current_build_duration_threshold_hard,
-                     str(duration),
+                     duration_str,
                      console_url,
                      status))
             resp["stop_call_response"] = ret
@@ -132,7 +143,7 @@ class JenkinsInterface(object):
                     "duration: %s\nconsole output: %s\n[soft threshold, no action taken]") %
                     (build,
                      self.current_build_duration_threshold_soft,
-                     str(duration),
+                     duration_str,
                      console_url))
             resp["email_notification"] = True
 

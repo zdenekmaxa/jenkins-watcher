@@ -4,6 +4,10 @@ Google App Engine Jenkins CI server watcher application.
 
 Main application file.
 
+Uses jenkinsapi library (wrapper around Jenkins CI server REST calls).
+https://pypi.python.org/pypi/jenkinsapi
+
+
 NOTES:
     the number of HTTP connection to jenkins server is very high (jenkinsapi lib)
     very often:
@@ -23,12 +27,10 @@ REFERENCE:
 
 
 TODO:
-    have longer-term (24h, 48, 72hs overviews), all trends
+    have longer-term (24h, 48, 72hs overviews - query by 1, 2, 3 ... days), all trends
         periodically retrieve data on all builds:
         status, duration, timestamp ; result: which jobs failed, P:num, F:num, S:num, E:num
         on frontend horizontal scroll, colour coding
-        try retrieving everything in a stand-alone script, processing data,
-        then loading into datastore
 
     experiment with sms alerts
 
