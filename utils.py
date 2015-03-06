@@ -40,16 +40,18 @@ def get_localized_timestamp_str(stamp):
 
 
 def send_email(subject=None, body=None):
-    log.info("Sending email:\n%s\n%s" % (subject, body))
     subject = "[jenkins-watcher] %s" % subject
+    log.info("Sending email:\n%s\n%s" % (subject, body))
     mail_args = dict(sender=email_sender,
                      subject=subject,
                      body=body,
                      to=email_recipients)
     try:
         mail.send_mail(**mail_args)
+        return True
     except:
         log.exception(str(mail_args))
+        return False
 
 
 def access_restriction(handler_method):

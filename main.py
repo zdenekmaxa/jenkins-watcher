@@ -23,8 +23,7 @@ REFERENCE:
 
 
 TODO:
-    general activity summary email every 12 hours or so ... how
-    many updates - heartbeat check
+    email alert on every exception/failure in the application, decorators?
 
     have longer-term (24h, 48, 72hs overviews), all trends
         periodically retrieve data on all builds:
@@ -32,8 +31,6 @@ TODO:
         on frontend horizontal scroll, colour coding
         try retrieving everything in a stand-alone script, processing data,
         then loading into datastore
-
-    email alert on every exception/failure in the application, decorators?
 
     experiment with sms alerts
 
@@ -43,6 +40,7 @@ TODO:
 import os
 import json
 import sys
+import pprint
 import logging as log
 
 import webapp2
@@ -53,7 +51,8 @@ for egg_file in egg_files:
     sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
 
 from jenkins import refresh, JenkinsInterface
-from utils import get_current_timestamp_str, access_restriction
+from jenkins import ActivitySummary
+from utils import get_current_timestamp_str, access_restriction, send_email
 
 
 class RequestHandler(webapp2.RequestHandler):
@@ -68,10 +67,31 @@ class RequestHandler(webapp2.RequestHandler):
         self.response.out.write(json.dumps(resp))
 
     def refresh(self):
-        msg = "Running refresh task (%s) ..." % get_current_timestamp_str()
+        msg = "Running refresh task at %s ..." % get_current_timestamp_str()
         log.info(msg)
         deferred.defer(refresh)
         self.response.out.write(msg)
+
+    def init(self):
+        msg = "Initialization run at %s ..." % get_current_timestamp_str()
+        log.info(msg)
+        if ActivitySummary.get_by_id(ActivitySummary.summary_id_key) is None:
+            log.debug("ActivitySummary initialization ...")
+            activity = ActivitySummary(id=ActivitySummary.summary_id_key)
+            activity.put()
+            log.debug("Finished ActivitySummary initialization.")
+        else:
+            log.debug("ActivitySummary is already initialized.")
+        self.response.out.write(msg)
+
+    def send_summary(self):
+        log.info("Sending activity summary email at %s ..." % get_current_timestamp_str())
+        formatted_data = pprint.pformat(ActivitySummary.get_data())
+        send_email(subject="activity summary",
+                   body="activity summary: " + "\n\n" + formatted_data)
+        ActivitySummary.reset()
+        log.info("Finished activity summary.")
+
 
 routes = [
     webapp2.Route(r"/",
@@ -81,6 +101,14 @@ routes = [
     webapp2.Route(r"/refresh",
                   handler="main.RequestHandler:refresh",
                   name="refresh",
+                  methods=["GET", ]),
+    webapp2.Route(r"/init",
+                  handler="main.RequestHandler:init",
+                  name="init",
+                  methods=["GET", ]),
+    webapp2.Route(r"/send_summary",
+                  handler="main.RequestHandler:send_summary",
+                  name="send_summary",
                   methods=["GET", ]),
 ]
 

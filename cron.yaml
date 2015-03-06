@@ -2,3 +2,8 @@ cron:
 - description: Retrieve data from Jenkins CI server
   url: /refresh
   schedule: every 10 minutes
+
+- description: Send activity summary email
+  url: /send_summary
+  schedule: every 8 hours
+  timezone: Europe/Prague

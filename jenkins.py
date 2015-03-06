@@ -27,15 +27,54 @@ class DataOverview(ndb.Model):
 
 
 class ActivitySummary(ndb.Model):
-    update_counter = ndb.StringProperty()
-    update_last_time = ndb.DateTimeProperty()
+    summary_id_key = 1
+    overview_update_counter_total = ndb.IntegerProperty(default=0)
+    # since last summary email
+    overview_update_counter = ndb.IntegerProperty(default=0)
+    sent_emails_counter_total = ndb.IntegerProperty(default=0)
+    # since last summary email
+    sent_emails_counter = ndb.IntegerProperty(default=0)
+
+    @staticmethod
+    @ndb.transactional()
+    def reset():
+        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
+        data.overview_update_counter = 0
+        data.sent_emails_counter = 0
+        data.put()
+
+    @staticmethod
+    @ndb.transactional()
+    def increase_overview_update_counter():
+        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
+        data.overview_update_counter += 1
+        data.overview_update_counter_total += 1
+        data.put()
+
+    @staticmethod
+    @ndb.transactional()
+    def increase_sent_emails_counter():
+        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
+        data.sent_emails_counter += 1
+        data.sent_emails_counter_total += 1
+        data.put()
+
+    @staticmethod
+    @ndb.transactional()
+    def get_data():
+        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
+        r = dict(overview_update_counter_total=data.overview_update_counter_total,
+                 overview_update_counter=data.overview_update_counter,
+                 sent_emails_counter_total=data.sent_emails_counter_total,
+                 sent_emails_counter=data.sent_emails_counter)
+        return r
 
 
 class JenkinsInterface(object):
 
     overview_id_key = 1
-    # 25mins - email will be send
-    current_build_duration_threshold_soft = 25  # minutes
+    # 30mins - email will be send
+    current_build_duration_threshold_soft = 30  # minutes
     # 50mins - the build is really getting canceled
     current_build_duration_threshold_hard = 50  # minutes
 
@@ -102,7 +141,10 @@ class JenkinsInterface(object):
             formatted_data = pprint.pformat(resp)
             log.debug(formatted_data)
             subject = "too long build %s" % build
-            send_email(subject=subject, body=msg + "\n\n" + formatted_data)
+            result = send_email(subject=subject, body=msg + "\n\n" + formatted_data)
+            if result:
+                ActivitySummary.increase_sent_emails_counter()
+
         return resp
 
     def get_running_jobs_info(self):
@@ -144,8 +186,8 @@ class JenkinsInterface(object):
         self._update_data_store(data)
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
+        ActivitySummary.increase_overview_update_counter()
         log.debug("Finished refresh overview data task: '%s'" % get_current_timestamp_str())
-        #send_email(subject="data update", body=data_formatted)
 
     @staticmethod
     @ndb.transactional()
