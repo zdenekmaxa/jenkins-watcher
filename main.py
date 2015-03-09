@@ -27,11 +27,6 @@ REFERENCE:
 
 
 TODO:
-    have longer-term (24h, 48, 72hs overviews - query by 1, 2, 3 ... days), all trends
-        periodically retrieve data on all builds:
-        status, duration, timestamp ; result: which jobs failed, P:num, F:num, S:num, E:num
-        on frontend horizontal scroll, colour coding
-
     experiment with sms alerts
 
 """
@@ -50,8 +45,8 @@ from config import egg_files
 for egg_file in egg_files:
     sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
 
-from jenkins import refresh, JenkinsInterface
-from jenkins import ActivitySummary
+from jenkins import refresh, build_stats_init, JenkinsInterface
+from jenkins import ActivitySummary, BuildStatistics
 from utils import get_current_timestamp_str, access_restriction, send_email
 
 
@@ -82,6 +77,11 @@ class RequestHandler(webapp2.RequestHandler):
             log.debug("Finished ActivitySummary initialization.")
         else:
             log.debug("ActivitySummary is already initialized.")
+        if len(BuildStatistics.query().fetch()) == 0:
+            deferred.defer(build_stats_init)
+            log.debug("Finished BuildStatistics initialization.")
+        else:
+            log.debug("BuildStatistics is already initialized.")
         self.response.out.write(msg)
 
     def send_summary(self):

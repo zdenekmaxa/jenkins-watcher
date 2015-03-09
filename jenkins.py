@@ -83,6 +83,21 @@ class ActivitySummary(ndb.Model):
         return r
 
 
+class BuildStatistics(ndb.Model):
+    # key id will be job name (i.e. jenkins project name) + build id: 'build_name-build_id'
+    name = ndb.StringProperty(default="")
+    bid = ndb.IntegerProperty(default=0)
+    status = ndb.StringProperty(default="")
+    # time stamp of start of the build
+    ts = ndb.DateTimeProperty()
+    duration = ndb.StringProperty(default="")
+    # test cases counters
+    num_passed = ndb.IntegerProperty(default=0)
+    num_failed = ndb.IntegerProperty(default=0)
+    num_skipped = ndb.IntegerProperty(default=0)
+    num_errors = ndb.IntegerProperty(default=0)
+
+
 class JenkinsInterface(object):
 
     overview_id_key = 1
@@ -220,6 +235,10 @@ class JenkinsInterface(object):
         # is already a Python object
         return overview.data
 
+    #@exception_catcher
+    def build_stats_init(self):
+        pass
+
 
 def get_jenkins_interface():
     jenkins = JenkinsInterface(jenkins_url=jenkins_url,
@@ -230,5 +249,8 @@ def get_jenkins_interface():
 
 
 def refresh():
-    jenkins_iface = get_jenkins_interface()
-    jenkins_iface.refresh_overview_data()
+    get_jenkins_interface().refresh_overview_data()
+
+
+def build_stats_init():
+    get_jenkins_interface().build_stats_init()
