@@ -163,7 +163,7 @@ class JenkinsInterface(object):
             log.warn(msg)
             formatted_data = pprint.pformat(resp)
             log.debug(formatted_data)
-            subject = "long %s %s" % (current_build_id, job_name)
+            subject = "long #%s %s" % (current_build_id, job_name)
             result = send_email(subject=subject, body=msg + "\n\n" + formatted_data)
             if result:
                 ActivitySummary.increase_sent_emails_counter()

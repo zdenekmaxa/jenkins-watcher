@@ -25,6 +25,11 @@ skip_files:
   - ^(.*/)?\..*
 
 handlers:
+  - url: /send_summary
+    script: main.app
+    login: admin
+    secure: always
+
   - url: /refresh
     script: main.app
     login: admin

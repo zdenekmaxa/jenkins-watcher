@@ -5,4 +5,4 @@ cron:
 
 - description: Send activity summary email
   url: /send_summary
-  schedule: every 5 hours
+  schedule: every 12 hours
