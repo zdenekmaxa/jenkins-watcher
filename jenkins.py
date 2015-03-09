@@ -108,6 +108,18 @@ class JenkinsInterface(object):
     def get_total_queued_jobs(self):
         return len(self.server.get_queue())
 
+    def stop_running_build(self, build=None):
+        stop_call_response = build.stop()
+        for _ in range(6):
+            time.sleep(10)
+            status = build.get_status()
+            if status == "ABORTED":
+                ActivitySummary.increase_stopped_builds_counter()
+                break
+        else:
+            status = "%s - after 1 minute, should be ABORTED"
+        return stop_call_response, status
+
     def check_running_builds(self,
                              job_name=None,
                              build=None,
@@ -127,10 +139,7 @@ class JenkinsInterface(object):
         resp["stop_threshold_minutes"] = self.current_build_duration_threshold_hard
         resp["email_notification"] = False
         if duration.total_seconds() > self.current_build_duration_threshold_hard * 60:
-            ret = build.stop()
-            ActivitySummary.increase_stopped_builds_counter()
-            time.sleep(10)
-            status = build.get_status()
+            stop_call_response, status = self.stop_running_build(build)
             msg = (("Build '%s' has been running for more than %s minutes.\n"
                     "duration: %s\nconsole output: %s\nstopping ... current status: %s") %
                     (build,
@@ -138,11 +147,10 @@ class JenkinsInterface(object):
                      duration_str,
                      console_url,
                      status))
-            resp["stop_call_response"] = ret
+            resp["stop_call_response"] = stop_call_response
             resp["current_status"] = status
             resp["email_notification"] = True
-
-        if duration.total_seconds() > self.current_build_duration_threshold_soft * 60:
+        elif duration.total_seconds() > self.current_build_duration_threshold_soft * 60:
             msg = (("Build '%s' has been running for more than %s minutes.\n"
                     "duration: %s\nconsole output: %s\n[soft threshold, no action taken]") %
                     (build,
