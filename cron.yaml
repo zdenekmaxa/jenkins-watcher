@@ -5,5 +5,4 @@ cron:
 
 - description: Send activity summary email
   url: /send_summary
-  schedule: every 8 hours
-  timezone: Europe/Prague
+  schedule: every 5 hours
