@@ -238,8 +238,8 @@ class JenkinsInterface(object):
         overview.put()
 
     @exception_catcher
-    def refresh_overview_data(self):
-        log.info("Start refresh overview data task: '%s'" % get_current_timestamp_str())
+    def update_overview(self):
+        log.info("Start update_overview data task: '%s'" % get_current_timestamp_str())
         data = dict(total_queued_jobs=self.get_total_queued_jobs(),
                     running_jobs=self.get_running_jobs_info())
         data["data_retrieved_at"] = get_current_timestamp_str()
@@ -247,7 +247,7 @@ class JenkinsInterface(object):
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
         ActivitySummary.increase_overview_update_counter()
-        log.debug("Finished refresh overview data task: '%s'" % get_current_timestamp_str())
+        log.info("Finished update_overview data task: '%s'" % get_current_timestamp_str())
 
     @staticmethod
     @ndb.transactional()
@@ -256,7 +256,7 @@ class JenkinsInterface(object):
         # is already a Python object
         return overview.data
 
-    #@exception_catcher
+    @exception_catcher
     def builds_stats_init(self):
         """
         Build is one running test suite on jenkins for a given
@@ -265,6 +265,7 @@ class JenkinsInterface(object):
         going back to history
 
         """
+        log.info("Start builds_stats_init task: '%s'" % get_current_timestamp_str())
         # there is no timezone info, putting UTC
         limit = self.builds_history_init_limit * 60  # get seconds from minutes
         utc_now = pytz.utc.localize(datetime.datetime.utcnow())
@@ -288,6 +289,8 @@ class JenkinsInterface(object):
                 status = b.get_status()
                 # get rid of decimal point 0:18:19.931000 at build duration
                 duration = str(b.get_duration()).split('.')[0]
+                # TODO
+                # extract this for reuse - this store part
                 console_output = b.get_console()
                 result = self.process_console_output(console_output)
                 key_id = "%s-%s" % (job_name, bid)
@@ -303,6 +306,7 @@ class JenkinsInterface(object):
                         setattr(builds_stats, item, result[item])
                 log.debug("Storing %s ..." % builds_stats)
                 builds_stats.put()
+        log.info("Finished builds_stats_init task: '%s'" % get_current_timestamp_str())
 
     def process_console_output(self, console_output):
         """
@@ -331,6 +335,49 @@ class JenkinsInterface(object):
                 result = None
         return result
 
+    def update_builds_stats(self):
+        log.info("Start update_builds_stats task: '%s'" % get_current_timestamp_str())
+        for job_name in self.job_names:
+            job = self.server.get_job(job_name)
+            # returns iterator of available build id numbers in
+            # reverse order, most recent first
+            bids = job.get_build_ids()
+            for bid in bids:
+                log.debug("Retrieving data on %s #%s ..." % (job_name, bid))
+                b = job.get_build(bid)
+                status = b.get_status()
+                if not status:
+                    log.debug("%s #%s has not finished, status: %s, going to "
+                              "another build ..." % (job_name, bid, status))
+                    continue
+                # this build considered finished now
+                # check if we have not hit a build which is already stored
+                key_id = "%s-%s" % (job_name, bid)
+                if BuildsStatistics.get_by_id(key_id) is not None:
+                    log.debug("%s #%s is already stored, going to the "
+                              "next job type ..." % (job_name, bid))
+                    break
+                ts = b.get_timestamp()
+                # get rid of decimal point 0:18:19.931000 at build duration
+                duration = str(b.get_duration()).split('.')[0]
+                console_output = b.get_console()
+                result = self.process_console_output(console_output)
+                # TODO
+                # extract this for reuse - this store part
+                builds_stats = BuildsStatistics(id=key_id,
+                                                name=job_name,
+                                                bid=bid,
+                                                status=status,
+                                                # naive datetime (no timezone)
+                                                ts=ts.replace(tzinfo=None),
+                                                duration=duration)
+                if result:
+                    for item in ("passed", "failed", "skipped", "error"):
+                        setattr(builds_stats, item, result[item])
+                log.debug("Storing %s ..." % builds_stats)
+                builds_stats.put()
+        log.info("Finished update_builds_stats task: '%s'" % get_current_timestamp_str())
+
 
 def get_jenkins_interface():
     jenkins = JenkinsInterface(jenkins_url=jenkins_url,
@@ -340,9 +387,11 @@ def get_jenkins_interface():
     return jenkins
 
 
-def refresh():
-    get_jenkins_interface().refresh_overview_data()
+def update_overview():
+    get_jenkins_interface().update_overview()
 
+def update_builds_stats():
+    get_jenkins_interface().update_builds_stats()
 
 def builds_stats_init():
     get_jenkins_interface().builds_stats_init()

@@ -1,7 +1,11 @@
 cron:
-- description: Retrieve data from Jenkins CI server
-  url: /refresh
+- description: Retrieve overview data from the Jenkins CI server
+  url: /update_overview
   schedule: every 10 minutes
+
+- description: Retrieve builds information from the Jenkins CI server
+  url: /update_builds_stats
+  schedule: every 2 hours
 
 - description: Send activity summary email
   url: /send_summary

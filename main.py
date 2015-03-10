@@ -45,7 +45,7 @@ from config import egg_files
 for egg_file in egg_files:
     sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
 
-from jenkins import refresh, builds_stats_init, JenkinsInterface
+from jenkins import update_overview, update_builds_stats, builds_stats_init, JenkinsInterface
 from jenkins import ActivitySummary, BuildsStatistics
 from utils import get_current_timestamp_str, access_restriction, send_email
 
@@ -61,10 +61,16 @@ class RequestHandler(webapp2.RequestHandler):
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
-    def refresh(self):
-        msg = "Running refresh task at %s ..." % get_current_timestamp_str()
+    def update_overview(self):
+        msg = "Running update_overview task at %s ..." % get_current_timestamp_str()
         log.info(msg)
-        deferred.defer(refresh)
+        deferred.defer(update_overview)
+        self.response.out.write(msg)
+
+    def update_builds_stats(self):
+        msg = "Running update_builds_stats task at %s ..." % get_current_timestamp_str()
+        log.info(msg)
+        deferred.defer(update_builds_stats)
         self.response.out.write(msg)
 
     def init(self):
@@ -98,9 +104,13 @@ routes = [
                   handler="main.RequestHandler:index",
                   name="index",
                   methods=["GET", ]),
-    webapp2.Route(r"/refresh",
-                  handler="main.RequestHandler:refresh",
-                  name="refresh",
+    webapp2.Route(r"/update_overview",
+                  handler="main.RequestHandler:update_overview",
+                  name="update_overview",
+                  methods=["GET", ]),
+    webapp2.Route(r"/update_builds_stats",
+                  handler="main.RequestHandler:update_builds_stats",
+                  name="update_builds_stats",
                   methods=["GET", ]),
     webapp2.Route(r"/init",
                   handler="main.RequestHandler:init",
