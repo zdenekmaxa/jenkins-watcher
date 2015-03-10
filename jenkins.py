@@ -11,6 +11,7 @@ import json
 import pprint
 import logging as log
 import pytz
+import re
 
 from google.appengine.ext import ndb
 
@@ -18,8 +19,22 @@ from jenkinsapi.jenkins import Jenkins
 from jenkinsapi.custom_exceptions import NoBuildData
 
 from config import user_name, access_token, job_names, jenkins_url
-from utils import get_localized_timestamp_str, get_current_timestamp_str
+from utils import get_localized_timestamp_str, get_localized_timestamp, get_current_timestamp_str
 from utils import send_email, exception_catcher
+
+
+# console output processing compiled regular expression patterns
+# example lines to search for:
+# =================== 28 passed, 5 skipped in 1078.49 seconds ====================
+# ========== 1 failed, 27 passed, 5 skipped, 1 error in 996.52 seconds ===========
+# don't do passed|failed|skipped - matches something else
+first_iter_patterns = (re.compile("=+ .*[0-9]+ passed.* in .* seconds =+"),
+                       re.compile("=+ .*[0-9]+ failed.* in .* seconds =+"),
+                       re.compile("=+ .*[0-9]+ skipped.* in .* seconds =+"))
+second_iter_patterns = ((re.compile("[0-9]+ passed"), "passed"),
+                        (re.compile("[0-9]+ failed"), "failed"),
+                        (re.compile("[0-9]+ skipped"), "skipped"),
+                        (re.compile("[0-9]+ error"), "error"))
 
 
 class DataOverview(ndb.Model):
@@ -83,28 +98,34 @@ class ActivitySummary(ndb.Model):
         return r
 
 
-class BuildStatistics(ndb.Model):
+class BuildsStatistics(ndb.Model):
     # key id will be job name (i.e. jenkins project name) + build id: 'build_name-build_id'
     name = ndb.StringProperty(default="")
     bid = ndb.IntegerProperty(default=0)
     status = ndb.StringProperty(default="")
     # time stamp of start of the build
+    # DatetimeProperty ts can only support UTC.
+    # NDB can only store UTC but no timezone specified (naive)
     ts = ndb.DateTimeProperty()
     duration = ndb.StringProperty(default="")
     # test cases counters
-    num_passed = ndb.IntegerProperty(default=0)
-    num_failed = ndb.IntegerProperty(default=0)
-    num_skipped = ndb.IntegerProperty(default=0)
-    num_errors = ndb.IntegerProperty(default=0)
+    passed = ndb.IntegerProperty(default=0)
+    failed = ndb.IntegerProperty(default=0)
+    skipped = ndb.IntegerProperty(default=0)
+    error = ndb.IntegerProperty(default=0)
 
 
 class JenkinsInterface(object):
 
     overview_id_key = 1
-    # 40mins - email will be send
-    current_build_duration_threshold_soft = 40  # minutes
+    # 30mins - email will be send
+    current_build_duration_threshold_soft = 30  # minutes
     # 60mins - the build is really getting canceled
     current_build_duration_threshold_hard = 60  # minutes
+    # wait this timeout when stopping a build
+    stop_build_timeout = 1  # minute
+    # builds statistics history, go back this history on builds init
+    builds_history_init_limit = 1 * 24 * 60  # 2 days in minutes
 
     def __init__(self,
                  jenkins_url=None,
@@ -125,8 +146,8 @@ class JenkinsInterface(object):
 
     def stop_running_build(self, build=None):
         stop_call_response = build.stop()
-        for _ in range(6):
-            time.sleep(10)
+        for _ in range((self.stop_running_build * 60) / 10):
+            time.sleep(self.stop_running_build * 10)
             status = build.get_status()
             if status == "ABORTED":
                 ActivitySummary.increase_stopped_builds_counter()
@@ -236,8 +257,79 @@ class JenkinsInterface(object):
         return overview.data
 
     #@exception_catcher
-    def build_stats_init(self):
-        pass
+    def builds_stats_init(self):
+        """
+        Build is one running test suite on jenkins for a given
+        job type (project type)
+        iterate over projects and retrieve info on all builds
+        going back to history
+
+        """
+        # there is no timezone info, putting UTC
+        limit = self.builds_history_init_limit * 60  # get seconds from minutes
+        utc_now = pytz.utc.localize(datetime.datetime.utcnow())
+        for job_name in self.job_names:
+            job = self.server.get_job(job_name)
+            # returns iterator of available build id numbers in
+            # reverse order, most recent first
+            bids = job.get_build_ids()
+            count = 0
+            for bid in bids:
+                count += 1
+                if count == 1:
+                    # not interested in the very last one, may be running
+                    continue
+                log.debug("Retrieving data on %s #%s (counter: %s) ..." % (job_name, bid, count))
+                b = job.get_build(bid)
+                ts = b.get_timestamp()
+                if (utc_now - ts).total_seconds() > limit:
+                    # not interested in builds older than history limit
+                    break
+                status = b.get_status()
+                # get rid of decimal point 0:18:19.931000 at build duration
+                duration = str(b.get_duration()).split('.')[0]
+                console_output = b.get_console()
+                result = self.process_console_output(console_output)
+                key_id = "%s-%s" % (job_name, bid)
+                builds_stats = BuildsStatistics(id=key_id,
+                                                name=job_name,
+                                                bid=bid,
+                                                status=status,
+                                                # naive datetime (no timezone)
+                                                ts=ts.replace(tzinfo=None),
+                                                duration=duration)
+                if result:
+                    for item in ("passed", "failed", "skipped", "error"):
+                        setattr(builds_stats, item, result[item])
+                log.debug("Storing %s ..." % builds_stats)
+                builds_stats.put()
+
+    def process_console_output(self, console_output):
+        """
+        Process Jenkins job console output.
+        Iterate over the first type patterns to identify the result status line.
+        The iterate over the second pass expressions to derive
+        number of passed, skipped, failed and error test cases.
+
+        """
+        for cp in first_iter_patterns:
+            result_line = cp.findall(console_output)
+            if result_line:
+                assert len(result_line) == 1
+                # get  1) passed  2) failed  3) skipped  4) error  5) duration
+                result = {}
+                for cp2, what in second_iter_patterns:
+                    result_item = cp2.findall(result_line[0])
+                    if result_item:
+                        assert len(result_item) == 1
+                        item_num = int(result_item[0].replace(" %s" % what, ''))
+                        result[what] = item_num
+                    else:
+                        result[what] = 0
+                break
+            else:
+                result = None
+        return result
 
 
 def get_jenkins_interface():
@@ -252,5 +344,5 @@ def refresh():
     get_jenkins_interface().refresh_overview_data()
 
 
-def build_stats_init():
-    get_jenkins_interface().build_stats_init()
+def builds_stats_init():
+    get_jenkins_interface().builds_stats_init()

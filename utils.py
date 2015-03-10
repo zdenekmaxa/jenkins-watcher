@@ -41,6 +41,15 @@ def get_localized_timestamp_str(stamp):
     return LOCAL.normalize(local_dt).strftime(FORMAT)  # .normalize might be unnecessary
 
 
+def get_localized_timestamp(stamp):
+    """
+    Returns localized timestamp.
+
+    """
+    local_dt = stamp.replace(tzinfo=pytz.utc).astimezone(LOCAL)
+    return LOCAL.normalize(local_dt)  # .normalize might be unnecessary
+
+
 def send_email(subject=None, body=None):
     subject = "[jenkins-watcher] %s" % subject
     log.info("Sending email:\n%s\n%s" % (subject, body))

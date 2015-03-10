@@ -45,8 +45,8 @@ from config import egg_files
 for egg_file in egg_files:
     sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
 
-from jenkins import refresh, build_stats_init, JenkinsInterface
-from jenkins import ActivitySummary, BuildStatistics
+from jenkins import refresh, builds_stats_init, JenkinsInterface
+from jenkins import ActivitySummary, BuildsStatistics
 from utils import get_current_timestamp_str, access_restriction, send_email
 
 
@@ -77,9 +77,9 @@ class RequestHandler(webapp2.RequestHandler):
             log.debug("Finished ActivitySummary initialization.")
         else:
             log.debug("ActivitySummary is already initialized.")
-        if len(BuildStatistics.query().fetch()) == 0:
-            deferred.defer(build_stats_init)
-            log.debug("Finished BuildStatistics initialization.")
+        if len(BuildsStatistics.query().fetch()) == 0:
+            deferred.defer(builds_stats_init)
+            log.debug("Finished BuildsStatistics initialization.")
         else:
             log.debug("BuildStatistics is already initialized.")
         self.response.out.write(msg)
