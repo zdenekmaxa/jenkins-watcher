@@ -145,15 +145,16 @@ class JenkinsInterface(object):
         return len(self.server.get_queue())
 
     def stop_running_build(self, build=None):
+        log.warn("Stopping build %s ..." % build)
         stop_call_response = build.stop()
-        for _ in range((self.stop_running_build * 60) / 10):
-            time.sleep(self.stop_running_build * 10)
+        for _ in range((self.stop_build_timeout * 60) / 10):
+            time.sleep(self.stop_build_timeout * 10)
             status = build.get_status()
             if status == "ABORTED":
                 ActivitySummary.increase_stopped_builds_counter()
                 break
         else:
-            status = "%s - after 1 minute, should be ABORTED"
+            status = "build %s status %s - after 1 minute, should be ABORTED" % (build, status)
         return stop_call_response, status
 
     def check_running_builds(self,
@@ -335,6 +336,7 @@ class JenkinsInterface(object):
                 result = None
         return result
 
+    @exception_catcher
     def update_builds_stats(self):
         log.info("Start update_builds_stats task: '%s'" % get_current_timestamp_str())
         for job_name in self.job_names:
