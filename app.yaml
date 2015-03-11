@@ -30,7 +30,7 @@ handlers:
     login: admin
     secure: always
 
-  - url: /update_overview
+  - url: /update_overview_check_builds
     script: main.app
     login: admin
     secure: always

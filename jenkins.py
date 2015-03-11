@@ -19,8 +19,8 @@ from jenkinsapi.jenkins import Jenkins
 from jenkinsapi.custom_exceptions import NoBuildData
 
 from config import user_name, access_token, job_names, jenkins_url
-from utils import get_localized_timestamp_str, get_localized_timestamp, get_current_timestamp_str
-from utils import send_email, exception_catcher
+from utils import get_localized_timestamp_str, get_current_timestamp_str
+from utils import send_email
 
 
 # console output processing compiled regular expression patterns
@@ -154,7 +154,8 @@ class JenkinsInterface(object):
                 ActivitySummary.increase_stopped_builds_counter()
                 break
         else:
-            status = "build %s status %s - after 1 minute, should be ABORTED" % (build, status)
+            status = ("status '%s' - after %s minute, should be 'ABORTED'" %
+                      (status, self.stop_build_timeout))
         return stop_call_response, status
 
     def check_running_builds(self,
@@ -210,9 +211,10 @@ class JenkinsInterface(object):
     def get_running_jobs_info(self):
         resp = []
         for job_name in self.job_names:
-            log.info("Checking '%s' job ..." % job_name)
             job = self.server.get_job(job_name)
-            if job.is_running():
+            running = job.is_running()
+            log.info("Checking job '%s', running: %s." % (job_name, running))
+            if running:
                 r = dict()
                 log.info("'%s' job is running." % job_name)
                 r["job_name"] = job_name
@@ -238,9 +240,8 @@ class JenkinsInterface(object):
         overview = DataOverview(id=self.overview_id_key, data=data)
         overview.put()
 
-    @exception_catcher
-    def update_overview(self):
-        log.info("Start update_overview data task: '%s'" % get_current_timestamp_str())
+    def update_overview_check_builds(self):
+        log.info("Start update overview, check builds at '%s'" % get_current_timestamp_str())
         data = dict(total_queued_jobs=self.get_total_queued_jobs(),
                     running_jobs=self.get_running_jobs_info())
         data["data_retrieved_at"] = get_current_timestamp_str()
@@ -248,7 +249,7 @@ class JenkinsInterface(object):
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
         ActivitySummary.increase_overview_update_counter()
-        log.info("Finished update_overview data task: '%s'" % get_current_timestamp_str())
+        log.info("Finished update overview, check builds at '%s'" % get_current_timestamp_str())
 
     @staticmethod
     @ndb.transactional()
@@ -257,7 +258,6 @@ class JenkinsInterface(object):
         # is already a Python object
         return overview.data
 
-    @exception_catcher
     def builds_stats_init(self):
         """
         Build is one running test suite on jenkins for a given
@@ -266,7 +266,7 @@ class JenkinsInterface(object):
         going back to history
 
         """
-        log.info("Start builds_stats_init task: '%s'" % get_current_timestamp_str())
+        log.info("Start builds stats init at '%s'" % get_current_timestamp_str())
         # there is no timezone info, putting UTC
         limit = self.builds_history_init_limit * 60  # get seconds from minutes
         utc_now = pytz.utc.localize(datetime.datetime.utcnow())
@@ -286,6 +286,7 @@ class JenkinsInterface(object):
                 ts = b.get_timestamp()
                 if (utc_now - ts).total_seconds() > limit:
                     # not interested in builds older than history limit
+                    log.debug("Hit too old build, going to another job type ...")
                     break
                 status = b.get_status()
                 # get rid of decimal point 0:18:19.931000 at build duration
@@ -307,7 +308,7 @@ class JenkinsInterface(object):
                         setattr(builds_stats, item, result[item])
                 log.debug("Storing %s ..." % builds_stats)
                 builds_stats.put()
-        log.info("Finished builds_stats_init task: '%s'" % get_current_timestamp_str())
+        log.info("Finished builds stats init at '%s'" % get_current_timestamp_str())
 
     def process_console_output(self, console_output):
         """
@@ -336,9 +337,8 @@ class JenkinsInterface(object):
                 result = None
         return result
 
-    @exception_catcher
     def update_builds_stats(self):
-        log.info("Start update_builds_stats task: '%s'" % get_current_timestamp_str())
+        log.info("Start update builds stats at '%s'" % get_current_timestamp_str())
         for job_name in self.job_names:
             job = self.server.get_job(job_name)
             # returns iterator of available build id numbers in
@@ -378,22 +378,12 @@ class JenkinsInterface(object):
                         setattr(builds_stats, item, result[item])
                 log.debug("Storing %s ..." % builds_stats)
                 builds_stats.put()
-        log.info("Finished update_builds_stats task: '%s'" % get_current_timestamp_str())
+        log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
 
 
-def get_jenkins_interface():
+def get_jenkins_instance():
     jenkins = JenkinsInterface(jenkins_url=jenkins_url,
                                user_name=user_name,
                                access_token=access_token,
                                job_names=job_names)
     return jenkins
-
-
-def update_overview():
-    get_jenkins_interface().update_overview()
-
-def update_builds_stats():
-    get_jenkins_interface().update_builds_stats()
-
-def builds_stats_init():
-    get_jenkins_interface().builds_stats_init()

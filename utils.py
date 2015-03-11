@@ -41,15 +41,6 @@ def get_localized_timestamp_str(stamp):
     return LOCAL.normalize(local_dt).strftime(FORMAT)  # .normalize might be unnecessary
 
 
-def get_localized_timestamp(stamp):
-    """
-    Returns localized timestamp.
-
-    """
-    local_dt = stamp.replace(tzinfo=pytz.utc).astimezone(LOCAL)
-    return LOCAL.normalize(local_dt)  # .normalize might be unnecessary
-
-
 def send_email(subject=None, body=None):
     subject = "[jenkins-watcher] %s" % subject
     log.info("Sending email:\n%s\n%s" % (subject, body))
@@ -112,7 +103,7 @@ def exception_catcher(handler_method):
     Used as decorator, critical section is run from here in the
     try-except block and an email is sent if an exception occurs.
 
-    Not designed for tested calls which return values each other.
+    Not designed for nested calls which return values each other.
     NoneType will be returned.
 
     """

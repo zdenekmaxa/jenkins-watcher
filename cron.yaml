@@ -1,6 +1,6 @@
 cron:
 - description: Retrieve overview data from the Jenkins CI server
-  url: /update_overview
+  url: /update_overview_check_builds
   schedule: every 10 minutes
 
 - description: Retrieve builds information from the Jenkins CI server
