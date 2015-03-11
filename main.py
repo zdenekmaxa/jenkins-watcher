@@ -90,7 +90,7 @@ class RequestHandler(webapp2.RequestHandler):
             logging.debug("Finished ActivitySummary initialization.")
         else:
             logging.debug("ActivitySummary is already initialized.")
-        if len(BuildsStatistics.query().fetch()) == 0:
+        if len(BuildsStatistics.query().fetch(keys_only=True)) == 0:
             deferred.defer(get_jenkins_instance().builds_stats_init)
             logging.debug("Finished BuildsStatistics initialization.")
         else:
@@ -104,6 +104,19 @@ class RequestHandler(webapp2.RequestHandler):
                    body="activity summary: " + "\n\n" + formatted_data)
         ActivitySummary.reset()
         logging.info("Finished sending activity summary.")
+
+    #@exception_catcher
+    def get_builds_stats(self):
+        try:
+            arg = self.request.get("days_limit", 1)
+            days_limit = int(arg)
+        except Exception as ex:
+            self.response.out.write("wrong argument: '%s'" % arg)
+            return
+        resp = BuildsStatistics.get_builds_data(days_limit=days_limit)
+        resp["current_time"] = get_current_timestamp_str()
+        self.response.headers["Content-Type"] = "application/json"
+        self.response.out.write(json.dumps(resp))
 
 
 # adjust logging
@@ -136,6 +149,10 @@ routes = [
     webapp2.Route(r"/send_summary",
                   handler="main.RequestHandler:send_summary",
                   name="send_summary",
+                  methods=["GET", ]),
+    webapp2.Route(r"/builds",
+                  handler="main.RequestHandler:get_builds_stats",
+                  name="builds",
                   methods=["GET", ]),
 ]
 

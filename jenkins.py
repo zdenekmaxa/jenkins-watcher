@@ -12,6 +12,7 @@ import pprint
 import logging as log
 import pytz
 import re
+import copy
 
 from google.appengine.ext import ndb
 
@@ -113,6 +114,54 @@ class BuildsStatistics(ndb.Model):
     failed = ndb.IntegerProperty(default=0)
     skipped = ndb.IntegerProperty(default=0)
     error = ndb.IntegerProperty(default=0)
+
+    def to_dict(self):
+        r = dict(job_name=self.name,
+                 build_id=self.bid,
+                 status=self.status,
+                 timestamp=get_localized_timestamp_str(self.ts),
+                 duration=self.duration,
+                 passed=self.passed,
+                 failed=self.failed,
+                 skipped=self.skipped,
+                 error=self.error)
+        return r
+
+    @staticmethod
+    # raise _ToDatastoreError(err) BadRequestError: queries inside transactions must have ancestors
+    #@ndb.transactional()
+    def get_builds_data(days_limit=1):
+        cond = datetime.datetime.utcnow() - datetime.timedelta(days=days_limit)
+        # order should be the same as BuildsStatistics.name, BuildsStatistics.ts
+        # this will already be ordered by job name and then by build id (since keys are such)
+        query = BuildsStatistics.query().order(BuildsStatistics.key)
+        builds = query.fetch()  # returns list of builds, of BuildsStatistics objects
+
+        # BadRequestError: The first sort property must be the same as the property to which the
+        # inequality filter is applied.
+        # In your query the first sort property is name but the inequality filter is on ts
+        # -> do the timestamp filtering on my own ... (can't combine ordering and filtering
+        # arbitrarily)
+
+        data = dict(days_limit=days_limit,
+                    num_builds=0,
+                    builds={})
+        # builds - dict keys - job names ; values: lists of all builds under that job name
+        res_builds = {}
+        for b in builds:
+            # check if the build is not before days_limit days
+            if b.ts < cond:
+                continue
+            res_build = copy.deepcopy(b.to_dict())
+            del res_build["job_name"]
+            try:
+                res_builds[b.name].append(res_build)
+            except KeyError:
+                res_builds[b.name] = [res_build]
+            finally:
+                data["num_builds"] += 1
+        data["builds"] = res_builds
+        return data
 
 
 class JenkinsInterface(object):

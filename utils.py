@@ -9,6 +9,7 @@ import datetime
 import pytz
 import logging as log
 import traceback
+from functools import wraps
 
 from google.appengine.api import mail
 from google.appengine.api import users
@@ -107,6 +108,8 @@ def exception_catcher(handler_method):
     NoneType will be returned.
 
     """
+    # without this: AttributeError: 'JenkinsInterface' object has no attribute 'inner'
+    @wraps(handler_method)
     def inner(*args, **kwargs):
         try:
             handler_method(*args, **kwargs)

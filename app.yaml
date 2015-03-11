@@ -45,6 +45,11 @@ handlers:
     login: admin
     secure: always
 
+  - url: /builds
+    script: main.app
+    secure: always
+    login: required
+
   - url: /.*
     script: main.app
     secure: always
