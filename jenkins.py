@@ -172,9 +172,9 @@ class JenkinsInterface(object):
     # 60mins - the build is really getting canceled
     current_build_duration_threshold_hard = 60  # minutes
     # wait this timeout when stopping a build
-    stop_build_timeout = 1  # minute
+    stop_build_timeout = 3  # minutes
     # builds statistics history, go back this history on builds init
-    builds_history_init_limit = 1 * 24 * 60  # 2 days in minutes
+    builds_history_init_limit = 2 * 24 * 60  # 2 days in minutes
 
     def __init__(self,
                  jenkins_url=None,
