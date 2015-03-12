@@ -172,7 +172,7 @@ class JenkinsInterface(object):
     # 60mins - the build is really getting canceled
     current_build_duration_threshold_hard = 60  # minutes
     # wait this timeout when stopping a build
-    stop_build_timeout = 3  # minutes
+    stop_build_timeout = 10  # seconds
     # builds statistics history, go back this history on builds init
     builds_history_init_limit = 2 * 24 * 60  # 2 days in minutes
 
@@ -193,40 +193,56 @@ class JenkinsInterface(object):
     def get_total_queued_jobs(self):
         return len(self.server.get_queue())
 
-    def stop_running_build(self, build=None):
+    def stop_running_build(self, job=None, build_id=-1):
+        """
+        Stop the build_id on the project type identified by the job
+        reference (as returned by the .get_job(job_name) call.
+
+        """
+        build = job.get_build(build_id)
         log.warn("Stopping build %s ..." % build)
         stop_call_response = build.stop()
-        for _ in range((self.stop_build_timeout * 60) / 10):
-            time.sleep(self.stop_build_timeout * 10)
+        for _ in range(self.stop_build_timeout):
+            time.sleep(1)
+            # when using the same build reference to check the current status,
+            # even when jenkins page reports the build ABORTED, this call upon
+            # the same reference of build will receive None
+            # get a fresh build reference after the stop() call
+            build = job.get_build(build_id)
             status = build.get_status()
             if status == "ABORTED":
                 ActivitySummary.increase_stopped_builds_counter()
                 break
         else:
-            status = ("status '%s' - after %s minute, should be 'ABORTED'" %
+            status = ("status '%s' - after %s seconds timeout, should be 'ABORTED'" %
                       (status, self.stop_build_timeout))
+        log.debug("Finished build stop method, result: %s" % status)
         return stop_call_response, status
 
-    def check_running_builds(self,
-                             job_name=None,
-                             build=None,
-                             build_timestamp=None,
-                             current_build_id=-1):
+    def check_running_build(self, job_name=None, current_build_id=-1):
         """
         Check duration of the build build.
         Dictionary resp is updated about actions performed in this method.
 
         """
         resp = {}
+        job = self.server.get_job(job_name)
+        build = job.get_build(current_build_id)
+        # get_timestamp returns this type of data, is in UTC:
+        # datetime.datetime(2015, 3, 3, 19, 41, 56, tzinfo=<UTC>) (is not JSON serializable)
+        ts = build.get_timestamp()
+        resp["start_timestamp"] = get_localized_timestamp_str(ts)
+        resp["data_retrieved_at"] = get_current_timestamp_str()
         console_url = "%s/job/%s/%s/console" % (self.jenkins_url, job_name, current_build_id)
         now = datetime.datetime.utcnow()  # there is no timezone info, putting UTC
-        duration = pytz.utc.localize(now) - build_timestamp
+        duration = pytz.utc.localize(now) - ts
         duration_str = str(duration).split('.')[0]
         resp["duration"] = duration_str
         resp["stop_threshold_minutes"] = self.current_build_duration_threshold_hard
         resp["email_notification"] = False
         if duration.total_seconds() > self.current_build_duration_threshold_hard * 60:
-            stop_call_response, status = self.stop_running_build(build)
+            stop_call_response, status = self.stop_running_build(job=job,
+                                                                 build_id=current_build_id)
             msg = (("Build '%s' has been running for more than %s minutes.\n"
                     "duration: %s\nconsole output: %s\nstopping ... current status: %s") %
                     (build,
@@ -249,12 +265,11 @@ class JenkinsInterface(object):
         if resp["email_notification"]:
             log.warn(msg)
             formatted_data = pprint.pformat(resp)
-            log.debug(formatted_data)
+            log.debug("build check response:\n%s" % formatted_data)
             subject = "long #%s %s" % (current_build_id, job_name)
             result = send_email(subject=subject, body=msg + "\n\n" + formatted_data)
             if result:
                 ActivitySummary.increase_sent_emails_counter()
-
         return resp
 
     def get_running_jobs_info(self):
@@ -265,19 +280,11 @@ class JenkinsInterface(object):
             log.info("Checking job '%s', running: %s." % (job_name, running))
             if running:
                 r = dict()
-                log.info("'%s' job is running." % job_name)
                 r["job_name"] = job_name
                 last_build_id = job.get_last_buildnumber()
                 r["last_build_id"] = last_build_id
-                build = job.get_build(last_build_id)
-                # get_timestamp returns this type of data, is in UTC:
-                # datetime.datetime(2015, 3, 3, 19, 41, 56, tzinfo=<UTC>) (is not JSON serializable)
-                ts = build.get_timestamp()
-                r["start_timestamp"] = get_localized_timestamp_str(ts)
-                result = self.check_running_builds(job_name=job_name,
-                                                   build=build,
-                                                   build_timestamp=ts,
-                                                   current_build_id=last_build_id)
+                result = self.check_running_build(job_name=job_name,
+                                                  current_build_id=last_build_id)
                 r.update(result)
                 resp.append(r)
         return resp
@@ -293,7 +300,6 @@ class JenkinsInterface(object):
         log.info("Start update overview, check builds at '%s'" % get_current_timestamp_str())
         data = dict(total_queued_jobs=self.get_total_queued_jobs(),
                     running_jobs=self.get_running_jobs_info())
-        data["data_retrieved_at"] = get_current_timestamp_str()
         self._update_data_store(data)
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
