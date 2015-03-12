@@ -25,22 +25,27 @@ skip_files:
   - ^(.*/)?\..*
 
 handlers:
-  - url: /send_summary
-    script: main.app
-    login: admin
-    secure: always
-
-  - url: /update_overview_check_builds
-    script: main.app
-    login: admin
-    secure: always
-
-  - url: /update_builds_stats
-    script: main.app
-    login: admin
-    secure: always
-
   - url: /init
+    script: main.app
+    login: admin
+    secure: always
+
+  - url: /summary
+    script: main.app
+    secure: always
+    login: required
+
+  - url: /summary/send
+    script: main.app
+    login: admin
+    secure: always
+
+  - url: /overview
+    script: main.app
+    secure: always
+    login: required
+
+  - url: /overview/update
     script: main.app
     login: admin
     secure: always
@@ -49,6 +54,11 @@ handlers:
     script: main.app
     secure: always
     login: required
+
+  - url: /builds/update
+    script: main.app
+    login: admin
+    secure: always
 
   - url: /.*
     script: main.app

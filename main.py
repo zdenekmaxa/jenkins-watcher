@@ -42,6 +42,8 @@ import pprint
 import logging
 
 import webapp2
+from webapp2 import Route, WSGIApplication
+from webapp2_extras.routes import PathPrefixRoute
 from google.appengine.ext import deferred
 
 from config import egg_files
@@ -57,7 +59,7 @@ from utils import exception_catcher
 class RequestHandler(webapp2.RequestHandler):
     @access_restriction
     @exception_catcher
-    def index(self):
+    def get_overview(self):
         # there is no timezone info there, maybe it's deeper
         # log.info("Received request, headers:\n%s" % self.request.headers.items())
         # returns Python dictionary
@@ -65,20 +67,6 @@ class RequestHandler(webapp2.RequestHandler):
         resp["current_time"] = get_current_timestamp_str()
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
-
-    @exception_catcher
-    def update_overview_check_builds(self):
-        msg = "Running task at %s ..." % get_current_timestamp_str()
-        logging.info(msg)
-        deferred.defer(get_jenkins_instance().update_overview_check_builds)
-        self.response.out.write(msg)
-
-    @exception_catcher
-    def update_builds_stats(self):
-        msg = "Running task at %s ..." % get_current_timestamp_str()
-        logging.info(msg)
-        deferred.defer(get_jenkins_instance().update_builds_stats)
-        self.response.out.write(msg)
 
     def init(self):
         msg = "Initialization run at %s ..." % get_current_timestamp_str()
@@ -98,14 +86,39 @@ class RequestHandler(webapp2.RequestHandler):
         self.response.out.write(msg)
 
     def send_summary(self):
-        logging.info("Sending activity summary email at %s ..." % get_current_timestamp_str())
+        msg = "Sending activity summary email at %s ..." % get_current_timestamp_str()
+        logging.info(msg)
         formatted_data = pprint.pformat(ActivitySummary.get_data())
         send_email(subject="activity summary",
                    body="activity summary: " + "\n\n" + formatted_data)
         ActivitySummary.reset()
         logging.info("Finished sending activity summary.")
+        self.response.out.write(msg)
 
-    #@exception_catcher
+    @access_restriction
+    @exception_catcher
+    def get_summary(self):
+        resp = ActivitySummary.get_data()
+        resp["current_time"] = get_current_timestamp_str()
+        self.response.headers["Content-Type"] = "application/json"
+        self.response.out.write(json.dumps(resp))
+
+    @exception_catcher
+    def update_overview_check_running_builds(self):
+        msg = "Running task at %s ..." % get_current_timestamp_str()
+        logging.info(msg)
+        deferred.defer(get_jenkins_instance().update_overview_check_running_builds)
+        self.response.out.write(msg)
+
+    @exception_catcher
+    def update_builds(self):
+        msg = "Running task at %s ..." % get_current_timestamp_str()
+        logging.info(msg)
+        deferred.defer(get_jenkins_instance().update_builds_stats)
+        self.response.out.write(msg)
+
+    @access_restriction
+    @exception_catcher
     def get_builds_stats(self):
         try:
             arg = self.request.get("days_limit", 1)
@@ -130,32 +143,46 @@ log.setLevel(logging.WARNING)
 
 
 routes = [
-    webapp2.Route(r"/",
-                  handler="main.RequestHandler:index",
-                  name="index",
-                  methods=["GET", ]),
-    webapp2.Route(r"/update_overview_check_builds",
-                  handler="main.RequestHandler:update_overview_check_builds",
-                  name="update_overview_check_builds",
-                  methods=["GET", ]),
-    webapp2.Route(r"/update_builds_stats",
-                  handler="main.RequestHandler:update_builds_stats",
-                  name="update_builds_stats",
-                  methods=["GET", ]),
-    webapp2.Route(r"/init",
-                  handler="main.RequestHandler:init",
-                  name="init",
-                  methods=["GET", ]),
-    webapp2.Route(r"/send_summary",
-                  handler="main.RequestHandler:send_summary",
-                  name="send_summary",
-                  methods=["GET", ]),
-    webapp2.Route(r"/builds",
-                  handler="main.RequestHandler:get_builds_stats",
-                  name="builds",
-                  methods=["GET", ]),
+    Route(r"/init",
+          handler="main.RequestHandler:init",
+          name="init",
+          methods=["GET", ]),
+    Route(r"/",
+          handler="main.RequestHandler:get_overview",
+          name="index",
+          methods=["GET", ]),
+    Route(r"/overview",
+          handler="main.RequestHandler:get_overview",
+          name="get_overview",
+          methods=["GET", ]),
+    PathPrefixRoute(r"/overview", [
+        Route(r"/update",
+              handler="main.RequestHandler:update_overview_check_running_builds",
+              name="update_overview_check_running_builds",
+              methods=["GET", ])
+        ]),
+    Route(r"/builds",
+          handler="main.RequestHandler:get_builds_stats",
+          name="get_builds_stats",
+          methods=["GET", ]),
+    PathPrefixRoute(r"/builds", [
+        Route(r"/update",
+              handler="main.RequestHandler:update_builds",
+              name="update_builds",
+              methods=["GET", ])
+          ]),
+    Route(r"/summary",
+          handler="main.RequestHandler:get_summary",
+          name="get_summary",
+          methods=["GET", ]),
+    PathPrefixRoute(r"/summary", [
+        Route(r"/send",
+              handler="main.RequestHandler:send_summary",
+              name="send_summary",
+              methods=["GET", ])
+        ])
 ]
 
 
 # application instance
-app = webapp2.WSGIApplication(routes=routes, debug=True)
+app = WSGIApplication(routes=routes, debug=True)

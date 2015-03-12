@@ -1,5 +1,3 @@
-import os
-
 jenkins_url = URL
 
 # jenkins egg file and its dependencies not available on App Engine

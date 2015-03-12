@@ -272,7 +272,7 @@ class JenkinsInterface(object):
                 ActivitySummary.increase_sent_emails_counter()
         return resp
 
-    def get_running_jobs_info(self):
+    def check_running_builds_get_info(self):
         resp = []
         for job_name in self.job_names:
             job = self.server.get_job(job_name)
@@ -288,23 +288,6 @@ class JenkinsInterface(object):
                 r.update(result)
                 resp.append(r)
         return resp
-
-    @ndb.transactional()
-    def _update_data_store(self, data):
-        # just the update has to be separated from the refresh method,
-        # the transaction fails there since it takes too long
-        overview = DataOverview(id=self.overview_id_key, data=data)
-        overview.put()
-
-    def update_overview_check_builds(self):
-        log.info("Start update overview, check builds at '%s'" % get_current_timestamp_str())
-        data = dict(total_queued_jobs=self.get_total_queued_jobs(),
-                    running_jobs=self.get_running_jobs_info())
-        self._update_data_store(data)
-        data_formatted = pprint.pformat(data)
-        log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
-        ActivitySummary.increase_overview_update_counter()
-        log.info("Finished update overview, check builds at '%s'" % get_current_timestamp_str())
 
     @staticmethod
     @ndb.transactional()
@@ -434,6 +417,29 @@ class JenkinsInterface(object):
                 log.debug("Storing %s ..." % builds_stats)
                 builds_stats.put()
         log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
+
+    @ndb.transactional()
+    def _update_overview_in_data_store(self, data):
+        # just the update has to be separated from the refresh method,
+        # the transaction fails there since it takes too long
+        overview = DataOverview(id=self.overview_id_key, data=data)
+        overview.put()
+
+    def update_overview_check_running_builds(self):
+        """
+        Combines 2 actions - update overview data (info about currently
+        running builds and checks them if they are not for too long
+        in execution. Entry point.
+
+        """
+        log.info("Start update overview, check builds at '%s'" % get_current_timestamp_str())
+        data = dict(total_queued_jobs=self.get_total_queued_jobs(),
+                    running_jobs=self.check_running_builds_get_info())
+        self._update_overview_in_data_store(data)
+        data_formatted = pprint.pformat(data)
+        log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
+        ActivitySummary.increase_overview_update_counter()
+        log.info("Finished update overview, check builds at '%s'" % get_current_timestamp_str())
 
 
 def get_jenkins_instance():
