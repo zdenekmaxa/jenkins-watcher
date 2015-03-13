@@ -232,7 +232,7 @@ class JenkinsInterface(object):
         # datetime.datetime(2015, 3, 3, 19, 41, 56, tzinfo=<UTC>) (is not JSON serializable)
         ts = build.get_timestamp()
         resp["start_timestamp"] = get_localized_timestamp_str(ts)
-        resp["data_retrieved_at"] = get_current_timestamp_str()
+        resp["retrieved_at"] = get_current_timestamp_str()
         console_url = "%s/job/%s/%s/console" % (self.jenkins_url, job_name, current_build_id)
         now = datetime.datetime.utcnow()  # there is no timezone info, putting UTC
         duration = pytz.utc.localize(now) - ts
@@ -435,6 +435,9 @@ class JenkinsInterface(object):
         log.info("Start update overview, check builds at '%s'" % get_current_timestamp_str())
         data = dict(total_queued_jobs=self.get_total_queued_jobs(),
                     running_jobs=self.check_running_builds_get_info())
+        # if there is no date on running jobs, add timestamp, it would be there otherwise
+        if len(data["running_jobs"]) == 0:
+            data["retrieved_at"] = get_current_timestamp_str()
         self._update_overview_in_data_store(data)
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
