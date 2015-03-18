@@ -18,8 +18,9 @@ NOTES:
     Deadline exceeded while waiting for HTTP response from URL: XXXXX
     solved by patching jenkinsappi and requests lib (libs/README.md)
 
-    The server works in CET/CEST times, talk the same (convert to this timezome
-        times as retrieved from the server or datetime timestamps which are UTC).
+    The jenkins CI server works in CET/CEST times, talk the same (convert to
+        this timezome times as retrieved from the server or datetime
+         timestamps which are UTC).
 
     NDB can only store DataTimeProperty in UTC but timezone unaware (naive),
         otherwise .put() throws an exception
@@ -34,10 +35,7 @@ TODO:
 
 """
 
-
-import os
 import json
-import sys
 import pprint
 import logging
 
@@ -46,43 +44,25 @@ from webapp2 import Route, WSGIApplication
 from webapp2_extras.routes import PathPrefixRoute
 from google.appengine.ext import deferred
 
-from config import egg_files
-for egg_file in egg_files:
-    sys.path.append(os.path.join(os.path.dirname(__file__), "libs", egg_file))
-
-from jenkins import JenkinsInterface, get_jenkins_instance
-from jenkins import ActivitySummary, BuildsStatistics
-from utils import get_current_timestamp_str, access_restriction, send_email
-from utils import exception_catcher
+from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
+from contrib.jenkins import ActivitySummary, BuildsStatistics
+from contrib.utils import get_current_timestamp_str, access_restriction, send_email
+from contrib.utils import exception_catcher
 
 
 class RequestHandler(webapp2.RequestHandler):
     @access_restriction
     @exception_catcher
     def get_overview(self):
-        # there is no timezone info there, maybe it's deeper
+        # there is no timezone info in the request headers, maybe it's deeper
         # log.info("Received request, headers:\n%s" % self.request.headers.items())
         # returns Python dictionary
         resp = JenkinsInterface.get_overview_data()
-        resp["current_time"] = get_current_timestamp_str()
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
     def init(self):
-        msg = "Initialization run at %s ..." % get_current_timestamp_str()
-        logging.info(msg)
-        if ActivitySummary.get_by_id(ActivitySummary.summary_id_key) is None:
-            logging.debug("ActivitySummary initialization ...")
-            activity = ActivitySummary(id=ActivitySummary.summary_id_key)
-            activity.put()
-            logging.debug("Finished ActivitySummary initialization.")
-        else:
-            logging.debug("ActivitySummary is already initialized.")
-        if len(BuildsStatistics.query().fetch(keys_only=True)) == 0:
-            deferred.defer(get_jenkins_instance().builds_stats_init)
-            logging.debug("Finished BuildsStatistics initialization.")
-        else:
-            logging.debug("BuildStatistics is already initialized.")
+        msg = initialization()
         self.response.out.write(msg)
 
     def send_activity_summary(self):

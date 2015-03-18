@@ -3,25 +3,24 @@ Jenkins CI server interface file.
 
 """
 
-
-import sys
 import time
 import datetime
-import json
 import pprint
 import logging as log
-import pytz
 import re
 import copy
 
-from google.appengine.ext import ndb
-
+import pytz
 from jenkinsapi.jenkins import Jenkins
-from jenkinsapi.custom_exceptions import NoBuildData
+
+from google.appengine.ext import ndb
+from google.appengine.api import memcache
+from google.appengine.ext import deferred
 
 from config import user_name, access_token, job_names, jenkins_url
-from utils import get_localized_timestamp_str, get_current_timestamp_str
-from utils import send_email
+from contrib.utils import get_localized_timestamp_str, get_current_timestamp_str
+from contrib.utils import send_email
+
 
 
 # console output processing compiled regular expression patterns
@@ -29,13 +28,16 @@ from utils import send_email
 # =================== 28 passed, 5 skipped in 1078.49 seconds ====================
 # ========== 1 failed, 27 passed, 5 skipped, 1 error in 996.52 seconds ===========
 # don't do passed|failed|skipped - matches something else
-first_iter_patterns = (re.compile("=+ .*[0-9]+ passed.* in .* seconds =+"),
-                       re.compile("=+ .*[0-9]+ failed.* in .* seconds =+"),
-                       re.compile("=+ .*[0-9]+ skipped.* in .* seconds =+"))
-second_iter_patterns = ((re.compile("[0-9]+ passed"), "passed"),
-                        (re.compile("[0-9]+ failed"), "failed"),
-                        (re.compile("[0-9]+ skipped"), "skipped"),
-                        (re.compile("[0-9]+ error"), "error"))
+FIRST_ITERATION_PATTERNS = (re.compile("=+ .*[0-9]+ passed.* in .* seconds =+"),
+                            re.compile("=+ .*[0-9]+ failed.* in .* seconds =+"),
+                            re.compile("=+ .*[0-9]+ skipped.* in .* seconds =+"))
+SECOND_ITERATION_PATTERNS = ((re.compile("[0-9]+ passed"), "passed"),
+                             (re.compile("[0-9]+ failed"), "failed"),
+                             (re.compile("[0-9]+ skipped"), "skipped"),
+                             (re.compile("[0-9]+ error"), "error"))
+
+MEMCACHE_OVERVIEW_KEY = "MEMCACHE_OVERVIEW_KEY"
+MEMCACHE_BUILDS_KEY_BASE = "MEMCACHE_BUILDS_KEY_BASE"
 
 
 class DataOverview(ndb.Model):
@@ -273,6 +275,12 @@ class JenkinsInterface(object):
         return resp
 
     def check_running_builds_get_info(self):
+        """
+        Iterate over all job types and if a job type is currently running
+        (i.e. there is an active build for the job type), last build number
+        is retrieved and duration of that is build is checked.
+
+        """
         resp = []
         for job_name in self.job_names:
             job = self.server.get_job(job_name)
@@ -292,8 +300,12 @@ class JenkinsInterface(object):
     @staticmethod
     @ndb.transactional()
     def get_overview_data():
-        overview = DataOverview.get_by_id(JenkinsInterface.overview_id_key)
+        overview = memcache.get(MEMCACHE_OVERVIEW_KEY)
+        if not overview:
+            log.debug("DataOverview not present in memcache, getting from datastore ...")
+            overview = DataOverview.get_by_id(JenkinsInterface.overview_id_key)
         # is already a Python object
+        overview.data["current_time"] = get_current_timestamp_str()
         return overview.data
 
     def builds_stats_init(self):
@@ -320,33 +332,48 @@ class JenkinsInterface(object):
                     # not interested in the very last one, may be running
                     continue
                 log.debug("Retrieving data on %s #%s (counter: %s) ..." % (job_name, bid, count))
-                b = job.get_build(bid)
-                ts = b.get_timestamp()
+                build = job.get_build(bid)
+                ts = build.get_timestamp()
+                status = build.get_status()
                 if (utc_now - ts).total_seconds() > limit:
                     # not interested in builds older than history limit
                     log.debug("Hit too old build, going to another job type ...")
                     break
-                status = b.get_status()
-                # get rid of decimal point 0:18:19.931000 at build duration
-                duration = str(b.get_duration()).split('.')[0]
-                # TODO
-                # extract this for reuse - this store part
-                console_output = b.get_console()
-                result = self.process_console_output(console_output)
-                key_id = "%s-%s" % (job_name, bid)
-                builds_stats = BuildsStatistics(id=key_id,
-                                                name=job_name,
-                                                bid=bid,
-                                                status=status,
-                                                # naive datetime (no timezone)
-                                                ts=ts.replace(tzinfo=None),
-                                                duration=duration)
-                if result:
-                    for item in ("passed", "failed", "skipped", "error"):
-                        setattr(builds_stats, item, result[item])
-                log.debug("Storing %s ..." % builds_stats)
-                builds_stats.put()
+                self.process_build_info_and_store(build=build,
+                                                  job_name=job_name,
+                                                  timestamp=ts,
+                                                  build_id=bid,
+                                                  status=status)
         log.info("Finished builds stats init at '%s'" % get_current_timestamp_str())
+
+    def process_build_info_and_store(self,
+                                     build=None,
+                                     job_name=None,
+                                     timestamp=None,
+                                     build_id=None,
+                                     status=None):
+        """
+        Retrieve further details for a build including console output
+        analysis and store the data into datastore.
+
+        """
+        # get rid of decimal point 0:18:19.931000 at build duration
+        duration = str(build.get_duration()).split('.')[0]
+        console_output = build.get_console()
+        result = self.process_console_output(console_output)
+        key_id = "%s-%s" % (job_name, build_id)
+        builds_stats = BuildsStatistics(id=key_id,
+                                        name=job_name,
+                                        bid=build_id,
+                                        status=status,
+                                        # naive datetime (no timezone)
+                                        ts=timestamp.replace(tzinfo=None),
+                                        duration=duration)
+        if result:
+            for item in ("passed", "failed", "skipped", "error"):
+                setattr(builds_stats, item, result[item])
+        log.debug("Storing %s ..." % builds_stats)
+        builds_stats.put()
 
     def process_console_output(self, console_output):
         """
@@ -356,13 +383,13 @@ class JenkinsInterface(object):
         number of passed, skipped, failed and error test cases.
 
         """
-        for cp in first_iter_patterns:
+        for cp in FIRST_ITERATION_PATTERNS:
             result_line = cp.findall(console_output)
             if result_line:
                 assert len(result_line) == 1
                 # get  1) passed  2) failed  3) skipped  4) error  5) duration
                 result = {}
-                for cp2, what in second_iter_patterns:
+                for cp2, what in SECOND_ITERATION_PATTERNS:
                     result_item = cp2.findall(result_line[0])
                     if result_item:
                         assert len(result_item) == 1
@@ -376,6 +403,13 @@ class JenkinsInterface(object):
         return result
 
     def update_builds_stats(self):
+        """
+        Main task to run over job types and builds from the last one:
+        retrieve information about a build and store into datastore
+        if it has not been processed in the previous run of this
+        routine.
+
+        """
         log.info("Start update builds stats at '%s'" % get_current_timestamp_str())
         for job_name in self.job_names:
             job = self.server.get_job(job_name)
@@ -384,8 +418,8 @@ class JenkinsInterface(object):
             bids = job.get_build_ids()
             for bid in bids:
                 log.debug("Retrieving data on %s #%s ..." % (job_name, bid))
-                b = job.get_build(bid)
-                status = b.get_status()
+                build = job.get_build(bid)
+                status = build.get_status()
                 if not status:
                     log.debug("%s #%s has not finished, status: %s, going to "
                               "another build ..." % (job_name, bid, status))
@@ -397,25 +431,12 @@ class JenkinsInterface(object):
                     log.debug("%s #%s is already stored, going to the "
                               "next job type ..." % (job_name, bid))
                     break
-                ts = b.get_timestamp()
-                # get rid of decimal point 0:18:19.931000 at build duration
-                duration = str(b.get_duration()).split('.')[0]
-                console_output = b.get_console()
-                result = self.process_console_output(console_output)
-                # TODO
-                # extract this for reuse - this store part
-                builds_stats = BuildsStatistics(id=key_id,
-                                                name=job_name,
-                                                bid=bid,
-                                                status=status,
-                                                # naive datetime (no timezone)
-                                                ts=ts.replace(tzinfo=None),
-                                                duration=duration)
-                if result:
-                    for item in ("passed", "failed", "skipped", "error"):
-                        setattr(builds_stats, item, result[item])
-                log.debug("Storing %s ..." % builds_stats)
-                builds_stats.put()
+                ts = build.get_timestamp()
+                self.process_build_info_and_store(build=build,
+                                                  job_name=job_name,
+                                                  timestamp=ts,
+                                                  build_id=bid,
+                                                  status=status)
         log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
 
     @ndb.transactional()
@@ -439,6 +460,7 @@ class JenkinsInterface(object):
         if len(data["running_jobs"]) == 0:
             data["retrieved_at"] = get_current_timestamp_str()
         self._update_overview_in_data_store(data)
+        memcache.set(MEMCACHE_OVERVIEW_KEY, data)
         data_formatted = pprint.pformat(data)
         log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
         ActivitySummary.increase_overview_update_counter()
@@ -451,3 +473,24 @@ def get_jenkins_instance():
                                access_token=access_token,
                                job_names=job_names)
     return jenkins
+
+
+def initialization():
+    """
+    Initialize datastore types.
+
+    """
+    msg = "Initialization run at %s ..." % get_current_timestamp_str()
+    log.info(msg)
+    if ActivitySummary.get_by_id(ActivitySummary.summary_id_key) is None:
+        log.debug("ActivitySummary initialization ...")
+        activity = ActivitySummary(id=ActivitySummary.summary_id_key)
+        activity.put()
+        log.debug("Finished ActivitySummary initialization.")
+    else:
+        log.debug("ActivitySummary is already initialized.")
+    if len(BuildsStatistics.query().fetch(keys_only=True)) == 0:
+        deferred.defer(get_jenkins_instance().builds_stats_init)
+        log.debug("Finished BuildsStatistics initialization.")
+    else:
+        log.debug("BuildStatistics is already initialized.")
