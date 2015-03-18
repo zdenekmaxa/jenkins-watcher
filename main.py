@@ -85,7 +85,7 @@ class RequestHandler(webapp2.RequestHandler):
             logging.debug("BuildStatistics is already initialized.")
         self.response.out.write(msg)
 
-    def send_summary(self):
+    def send_activity_summary(self):
         msg = "Sending activity summary email at %s ..." % get_current_timestamp_str()
         logging.info(msg)
         formatted_data = pprint.pformat(ActivitySummary.get_data())
@@ -97,7 +97,7 @@ class RequestHandler(webapp2.RequestHandler):
 
     @access_restriction
     @exception_catcher
-    def get_summary(self):
+    def get_activity_summary(self):
         resp = ActivitySummary.get_data()
         resp["current_time"] = get_current_timestamp_str()
         self.response.headers["Content-Type"] = "application/json"
@@ -171,14 +171,14 @@ routes = [
               name="update_builds",
               methods=["GET", ])
           ]),
-    Route(r"/summary",
-          handler="main.RequestHandler:get_summary",
-          name="get_summary",
+    Route(r"/activity",
+          handler="main.RequestHandler:get_activity_summary",
+          name="get_activity_summary",
           methods=["GET", ]),
-    PathPrefixRoute(r"/summary", [
+    PathPrefixRoute(r"/activity", [
         Route(r"/send",
-              handler="main.RequestHandler:send_summary",
-              name="send_summary",
+              handler="main.RequestHandler:send_activity_summary",
+              name="send_activity_summary",
               methods=["GET", ])
         ])
 ]

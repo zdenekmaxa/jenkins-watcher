@@ -30,12 +30,12 @@ handlers:
     login: admin
     secure: always
 
-  - url: /summary
+  - url: /activity
     script: main.app
     secure: always
     login: required
 
-  - url: /summary/send
+  - url: /activity/send
     script: main.app
     login: admin
     secure: always
