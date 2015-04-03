@@ -15,7 +15,9 @@ for line in lines:
     print url
     print "checking ..."
     req = urllib2.Request(url)
+    # TODO:
     # spits out the page with login request ...
+    # provide test credentials and check responses
     print urllib2.urlopen(req).read()
     print "waiting ..."
     time.sleep(5)

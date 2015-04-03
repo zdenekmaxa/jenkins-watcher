@@ -45,7 +45,7 @@ from webapp2_extras.routes import PathPrefixRoute
 from google.appengine.ext import deferred
 
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
-from contrib.jenkins import ActivitySummary, BuildsStatistics
+from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
 from contrib.utils import get_current_timestamp_str, access_restriction, send_email
 from contrib.utils import exception_catcher
 
@@ -57,7 +57,7 @@ class RequestHandler(webapp2.RequestHandler):
         # there is no timezone info in the request headers, maybe it's deeper
         # log.info("Received request, headers:\n%s" % self.request.headers.items())
         # returns Python dictionary
-        resp = JenkinsInterface.get_overview_data()
+        resp = OverviewModel.get_overview_data()
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
@@ -68,18 +68,17 @@ class RequestHandler(webapp2.RequestHandler):
     def send_activity_summary(self):
         msg = "Sending activity summary email at %s ..." % get_current_timestamp_str()
         logging.info(msg)
-        formatted_data = pprint.pformat(ActivitySummary.get_data())
+        formatted_data = pprint.pformat(ActivitySummaryModel.get_data())
         send_email(subject="activity summary",
                    body="activity summary: " + "\n\n" + formatted_data)
-        ActivitySummary.reset()
+        ActivitySummaryModel.reset()
         logging.info("Finished sending activity summary.")
         self.response.out.write(msg)
 
     @access_restriction
     @exception_catcher
     def get_activity_summary(self):
-        resp = ActivitySummary.get_data()
-        resp["current_time"] = get_current_timestamp_str()
+        resp = ActivitySummaryModel.get_data()
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 
@@ -106,8 +105,7 @@ class RequestHandler(webapp2.RequestHandler):
         except Exception as ex:
             self.response.out.write("wrong argument: '%s'" % arg)
             return
-        resp = BuildsStatistics.get_builds_data(days_limit=days_limit)
-        resp["current_time"] = get_current_timestamp_str()
+        resp = BuildsStatisticsModel.get_builds_data(days_limit=days_limit)
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 

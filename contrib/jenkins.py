@@ -3,24 +3,23 @@ Jenkins CI server interface file.
 
 """
 
+
 import time
 import datetime
 import pprint
 import logging as log
 import re
-import copy
 
 import pytz
 from jenkinsapi.jenkins import Jenkins
 
-from google.appengine.ext import ndb
-from google.appengine.api import memcache
 from google.appengine.ext import deferred
 
 from config import user_name, access_token, job_names, jenkins_url
 from contrib.utils import get_localized_timestamp_str, get_current_timestamp_str
 from contrib.utils import send_email
-
+from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
+from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY
 
 
 # console output processing compiled regular expression patterns
@@ -36,141 +35,11 @@ SECOND_ITERATION_PATTERNS = ((re.compile("[0-9]+ passed"), "passed"),
                              (re.compile("[0-9]+ skipped"), "skipped"),
                              (re.compile("[0-9]+ error"), "error"))
 
-MEMCACHE_OVERVIEW_KEY = "MEMCACHE_OVERVIEW_KEY"
-MEMCACHE_BUILDS_KEY_BASE = "MEMCACHE_BUILDS_KEY_BASE"
-
-
-class DataOverview(ndb.Model):
-    data = ndb.JsonProperty(required=True)
-
-
-class ActivitySummary(ndb.Model):
-    summary_id_key = 1
-    # since last summary email
-    overview_update_counter = ndb.IntegerProperty(default=0)
-    sent_emails_counter = ndb.IntegerProperty(default=0)
-    stopped_builds_counter = ndb.IntegerProperty(default=0)
-    # total
-    overview_update_counter_total = ndb.IntegerProperty(default=0)
-    sent_emails_counter_total = ndb.IntegerProperty(default=0)
-    stopped_builds_counter_total = ndb.IntegerProperty(default=0)
-
-    @staticmethod
-    @ndb.transactional()
-    def reset():
-        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
-        data.overview_update_counter = 0
-        data.sent_emails_counter = 0
-        data.stopped_builds_counter = 0
-        data.put()
-
-    @staticmethod
-    @ndb.transactional()
-    def increase_overview_update_counter():
-        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
-        data.overview_update_counter += 1
-        data.overview_update_counter_total += 1
-        data.put()
-
-    @staticmethod
-    @ndb.transactional()
-    def increase_sent_emails_counter():
-        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
-        data.sent_emails_counter += 1
-        data.sent_emails_counter_total += 1
-        data.put()
-
-    @staticmethod
-    @ndb.transactional()
-    def increase_stopped_builds_counter():
-        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
-        data.stopped_builds_counter += 1
-        data.stopped_builds_counter_total += 1
-        data.put()
-
-    @staticmethod
-    @ndb.transactional()
-    def get_data():
-        data = ActivitySummary.get_by_id(ActivitySummary.summary_id_key)
-        r = dict(overview_update_counter_total=data.overview_update_counter_total,
-                 overview_update_counter=data.overview_update_counter,
-                 sent_emails_counter_total=data.sent_emails_counter_total,
-                 sent_emails_counter=data.sent_emails_counter,
-                 stopped_builds_counter=data.stopped_builds_counter,
-                 stopped_builds_counter_total=data.stopped_builds_counter_total)
-        return r
-
-
-class BuildsStatistics(ndb.Model):
-    # key id will be job name (i.e. jenkins project name) + build id: 'build_name-build_id'
-    name = ndb.StringProperty(default="")
-    bid = ndb.IntegerProperty(default=0)
-    status = ndb.StringProperty(default="")
-    # time stamp of start of the build
-    # DatetimeProperty ts can only support UTC.
-    # NDB can only store UTC but no timezone specified (naive)
-    ts = ndb.DateTimeProperty()
-    duration = ndb.StringProperty(default="")
-    # test cases counters
-    passed = ndb.IntegerProperty(default=0)
-    failed = ndb.IntegerProperty(default=0)
-    skipped = ndb.IntegerProperty(default=0)
-    error = ndb.IntegerProperty(default=0)
-
-    def to_dict(self):
-        r = dict(job_name=self.name,
-                 build_id=self.bid,
-                 status=self.status,
-                 timestamp=get_localized_timestamp_str(self.ts),
-                 duration=self.duration,
-                 passed=self.passed,
-                 failed=self.failed,
-                 skipped=self.skipped,
-                 error=self.error)
-        return r
-
-    @staticmethod
-    # raise _ToDatastoreError(err) BadRequestError: queries inside transactions must have ancestors
-    #@ndb.transactional()
-    def get_builds_data(days_limit=1):
-        cond = datetime.datetime.utcnow() - datetime.timedelta(days=days_limit)
-        # order should be the same as BuildsStatistics.name, BuildsStatistics.ts
-        # this will already be ordered by job name and then by build id (since keys are such)
-        query = BuildsStatistics.query().order(BuildsStatistics.key)
-        builds = query.fetch()  # returns list of builds, of BuildsStatistics objects
-
-        # BadRequestError: The first sort property must be the same as the property to which the
-        # inequality filter is applied.
-        # In your query the first sort property is name but the inequality filter is on ts
-        # -> do the timestamp filtering on my own ... (can't combine ordering and filtering
-        # arbitrarily)
-
-        data = dict(days_limit=days_limit,
-                    num_builds=0,
-                    builds={})
-        # builds - dict keys - job names ; values: lists of all builds under that job name
-        res_builds = {}
-        for b in builds:
-            # check if the build is not before days_limit days
-            if b.ts < cond:
-                continue
-            res_build = copy.deepcopy(b.to_dict())
-            del res_build["job_name"]
-            try:
-                res_builds[b.name].append(res_build)
-            except KeyError:
-                res_builds[b.name] = [res_build]
-            finally:
-                data["num_builds"] += 1
-        data["builds"] = res_builds
-        return data
-
 
 class JenkinsInterface(object):
 
-    overview_id_key = 1
-    # 30mins - email will be send
-    current_build_duration_threshold_soft = 30  # minutes
+    # 40mins - email will be send
+    current_build_duration_threshold_soft = 40  # minutes
     # 60mins - the build is really getting canceled
     current_build_duration_threshold_hard = 60  # minutes
     # wait this timeout when stopping a build
@@ -213,7 +82,7 @@ class JenkinsInterface(object):
             build = job.get_build(build_id)
             status = build.get_status()
             if status == "ABORTED":
-                ActivitySummary.increase_stopped_builds_counter()
+                ActivitySummaryModel.increase_counters(which_counters=["stopped_builds_counter"])
                 break
         else:
             status = ("status '%s' - after %s seconds timeout, should be 'ABORTED'" %
@@ -271,7 +140,7 @@ class JenkinsInterface(object):
             subject = "long #%s %s" % (current_build_id, job_name)
             result = send_email(subject=subject, body=msg + "\n\n" + formatted_data)
             if result:
-                ActivitySummary.increase_sent_emails_counter()
+                ActivitySummaryModel.increase_counters(which_counters=["sent_emails_counter"])
         return resp
 
     def check_running_builds_get_info(self):
@@ -296,17 +165,6 @@ class JenkinsInterface(object):
                 r.update(result)
                 resp.append(r)
         return resp
-
-    @staticmethod
-    @ndb.transactional()
-    def get_overview_data():
-        overview = memcache.get(MEMCACHE_OVERVIEW_KEY)
-        if not overview:
-            log.debug("DataOverview not present in memcache, getting from datastore ...")
-            overview = DataOverview.get_by_id(JenkinsInterface.overview_id_key)
-        # is already a Python object
-        overview.data["current_time"] = get_current_timestamp_str()
-        return overview.data
 
     def builds_stats_init(self):
         """
@@ -362,13 +220,13 @@ class JenkinsInterface(object):
         console_output = build.get_console()
         result = self.process_console_output(console_output)
         key_id = "%s-%s" % (job_name, build_id)
-        builds_stats = BuildsStatistics(id=key_id,
-                                        name=job_name,
-                                        bid=build_id,
-                                        status=status,
-                                        # naive datetime (no timezone)
-                                        ts=timestamp.replace(tzinfo=None),
-                                        duration=duration)
+        builds_stats = BuildsStatisticsModel(id=key_id,
+                                             name=job_name,
+                                             bid=build_id,
+                                             status=status,
+                                             # naive datetime (no timezone)
+                                             ts=timestamp.replace(tzinfo=None),
+                                             duration=duration)
         if result:
             for item in ("passed", "failed", "skipped", "error"):
                 setattr(builds_stats, item, result[item])
@@ -427,7 +285,7 @@ class JenkinsInterface(object):
                 # this build considered finished now
                 # check if we have not hit a build which is already stored
                 key_id = "%s-%s" % (job_name, bid)
-                if BuildsStatistics.get_by_id(key_id) is not None:
+                if BuildsStatisticsModel.get_by_id(key_id) is not None:
                     log.debug("%s #%s is already stored, going to the "
                               "next job type ..." % (job_name, bid))
                     break
@@ -437,14 +295,8 @@ class JenkinsInterface(object):
                                                   timestamp=ts,
                                                   build_id=bid,
                                                   status=status)
+                ActivitySummaryModel.increase_counters(which_counters=["builds_stats_update_counter"])
         log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
-
-    @ndb.transactional()
-    def _update_overview_in_data_store(self, data):
-        # just the update has to be separated from the refresh method,
-        # the transaction fails there since it takes too long
-        overview = DataOverview(id=self.overview_id_key, data=data)
-        overview.put()
 
     def update_overview_check_running_builds(self):
         """
@@ -459,11 +311,9 @@ class JenkinsInterface(object):
         # if there is no date on running jobs, add timestamp, it would be there otherwise
         if len(data["running_jobs"]) == 0:
             data["retrieved_at"] = get_current_timestamp_str()
-        self._update_overview_in_data_store(data)
-        memcache.set(MEMCACHE_OVERVIEW_KEY, data)
-        data_formatted = pprint.pformat(data)
-        log.debug("Data updated under key id: '%s'\n%s" % (self.overview_id_key, data_formatted))
-        ActivitySummary.increase_overview_update_counter()
+        OverviewModel.update_overview_data(data)
+        log.debug("OverviewModel data updated:\n%s" % pprint.pformat(data))
+        ActivitySummaryModel.increase_counters(which_counters=["overview_update_counter"])
         log.info("Finished update overview, check builds at '%s'" % get_current_timestamp_str())
 
 
@@ -482,15 +332,15 @@ def initialization():
     """
     msg = "Initialization run at %s ..." % get_current_timestamp_str()
     log.info(msg)
-    if ActivitySummary.get_by_id(ActivitySummary.summary_id_key) is None:
-        log.debug("ActivitySummary initialization ...")
-        activity = ActivitySummary(id=ActivitySummary.summary_id_key)
+    if ActivitySummaryModel.get_data() is None:
+        log.debug("ActivitySummaryModel initialization ...")
+        activity = ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY)
         activity.put()
-        log.debug("Finished ActivitySummary initialization.")
+        log.debug("Finished ActivitySummaryModel initialization.")
     else:
-        log.debug("ActivitySummary is already initialized.")
-    if len(BuildsStatistics.query().fetch(keys_only=True)) == 0:
+        log.debug("ActivitySummaryModel is already initialized.")
+    if len(BuildsStatisticsModel.query().fetch(keys_only=True)) == 0:
         deferred.defer(get_jenkins_instance().builds_stats_init)
-        log.debug("Finished BuildsStatistics initialization.")
+        log.debug("Finished BuildsStatisticsModel initialization.")
     else:
-        log.debug("BuildStatistics is already initialized.")
+        log.debug("BuildStatisticsModel is already initialized.")

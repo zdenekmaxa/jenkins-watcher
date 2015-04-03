@@ -33,3 +33,5 @@ coverage.xml
 # credentials, private stuff
 config.py
 .idea
+
+tests/data/
