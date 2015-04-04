@@ -344,3 +344,4 @@ def initialization():
         log.debug("Finished BuildsStatisticsModel initialization.")
     else:
         log.debug("BuildStatisticsModel is already initialized.")
+    return msg
