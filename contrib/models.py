@@ -93,7 +93,9 @@ class ActivitySummaryModel(ndb.Model):
                  sent_emails_counter_total=data.sent_emails_counter_total,
                  sent_emails_counter=data.sent_emails_counter,
                  stopped_builds_counter=data.stopped_builds_counter,
-                 stopped_builds_counter_total=data.stopped_builds_counter_total)
+                 stopped_builds_counter_total=data.stopped_builds_counter_total,
+                 builds_stats_update_counter=data.builds_stats_update_counter,
+                 builds_stats_update_counter_total=data.builds_stats_update_counter_total)
         r["current_time"] = get_current_timestamp_str()
         return r
 

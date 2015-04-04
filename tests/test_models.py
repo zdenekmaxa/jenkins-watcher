@@ -39,14 +39,18 @@ class TestModels(TestBase):
                                    stopped_builds_counter=1,
                                    overview_update_counter_total=3448,
                                    sent_emails_counter_total=593,
-                                   stopped_builds_counter_total=134)
+                                   stopped_builds_counter_total=134,
+                                   builds_stats_update_counter=65,
+                                   builds_stats_update_counter_total=165)
         asm.put()
         ActivitySummaryModel.reset()
         asm = ActivitySummaryModel.get_data()
         assert asm["overview_update_counter"] == 0
         assert asm["sent_emails_counter"] == 0
+        assert asm["builds_stats_update_counter"] == 0
         assert asm["overview_update_counter_total"] == 3448
         assert asm["stopped_builds_counter_total"] == 134
+        assert asm["builds_stats_update_counter_total"] == 165
 
         ActivitySummaryModel.increase_counters(which_counters=["overview_update_counter"])
 
@@ -54,16 +58,17 @@ class TestModels(TestBase):
         assert asm["overview_update_counter"] == 1
         assert asm["overview_update_counter_total"] == 3449
 
-        ActivitySummaryModel.increase_counters(which_counters=["sent_emails_counter"])
-
+        ActivitySummaryModel.increase_counters(which_counters=["sent_emails_counter",
+                                                               "stopped_builds_counter",
+                                                               "builds_stats_update_counter"])
         asm = ActivitySummaryModel.get_data()
         assert asm["sent_emails_counter"] == 1
         assert asm["sent_emails_counter_total"] == 594
-
-        ActivitySummaryModel.increase_counters(which_counters=["stopped_builds_counter"])
-        asm = ActivitySummaryModel.get_data()
         assert asm["stopped_builds_counter_total"] == 135
         assert asm["stopped_builds_counter"] == 1
+        assert asm["builds_stats_update_counter_total"] == 166
+        assert asm["builds_stats_update_counter"] == 1
+
 
     def test_builds_statistics_model_get_builds_data(self):
         initialization()
