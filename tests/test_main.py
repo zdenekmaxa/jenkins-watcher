@@ -34,16 +34,9 @@ class TestMain(TestBase):
         # reset wil fail, there is no data
         # ActivitySummaryModel.reset()
 
-    def test__send_activity_summary(self):
+    def test_send_activity_summary(self):
         # put some data into datastore
-        asm = ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY,
-                                   overview_update_counter=72,
-                                   sent_emails_counter=593,
-                                   stopped_builds_counter=1,
-                                   overview_update_counter_total=3448,
-                                   sent_emails_counter_total=4,
-                                   stopped_builds_counter_total=134)
-        asm.put()
+        ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY).put()
         data = ActivitySummaryModel.get_data()
         formatted_data = pprint.pformat(data)
         send_email(subject="activity summary",
@@ -51,17 +44,12 @@ class TestMain(TestBase):
         ActivitySummaryModel.reset()
 
     def test_update_overview_check_running_builds(self):
-        asm = ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY,
-                                   overview_update_counter=72,
-                                   sent_emails_counter=593,
-                                   stopped_builds_counter=1,
-                                   overview_update_counter_total=3448,
-                                   sent_emails_counter_total=4,
-                                   stopped_builds_counter_total=134)
-        asm.put()
+        ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY).put()
         get_jenkins_instance().update_overview_check_running_builds()
 
     def test_update_builds(self):
+        asm = ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY)
+        asm.put()
         get_jenkins_instance().update_builds_stats()
 
     def test_get_builds_stats(self):

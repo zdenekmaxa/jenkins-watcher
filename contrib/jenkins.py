@@ -295,7 +295,7 @@ class JenkinsInterface(object):
                                                   timestamp=ts,
                                                   build_id=bid,
                                                   status=status)
-                ActivitySummaryModel.increase_counters(which_counters=["builds_stats_update_counter"])
+        ActivitySummaryModel.increase_counters(which_counters=["builds_stats_update_counter"])
         log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
 
     def update_overview_check_running_builds(self):

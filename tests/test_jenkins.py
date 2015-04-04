@@ -52,9 +52,14 @@ class TestJenkins(TestBase):
         assert asm["overview_update_counter_total"] == 3449
 
     def test_update_builds_stats(self):
+        asm = ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY)
+        asm.put()
         # since the mock classes return empty values, this method
         # is tested only partially
         self.jenkins.update_builds_stats()
+        asm = ActivitySummaryModel.get_data()
+        assert asm["builds_stats_update_counter_total"] == 1
+        assert asm["builds_stats_update_counter"] == 1
 
     def test_process_console_output(self):
         correct_results = {
