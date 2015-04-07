@@ -35,6 +35,7 @@ TODO:
 
 """
 
+
 import json
 import pprint
 import logging
@@ -125,10 +126,6 @@ routes = [
           handler="main.RequestHandler:init",
           name="init",
           methods=["GET", ]),
-    Route(r"/",
-          handler="main.RequestHandler:get_overview",
-          name="index",
-          methods=["GET", ]),
     Route(r"/overview",
           handler="main.RequestHandler:get_overview",
           name="get_overview",
@@ -161,6 +158,5 @@ routes = [
         ])
 ]
 
-
 # application instance
-app = WSGIApplication(routes=routes, debug=True)
+app = WSGIApplication(routes=routes, debug=True) # , config=webapp2_config)

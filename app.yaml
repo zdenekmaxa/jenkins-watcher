@@ -12,6 +12,8 @@ libraries:
     version: latest
   - name: setuptools
     version: latest
+  - name: jinja2
+    version: latest
 
 builtins:
   - deferred: on
@@ -59,6 +61,18 @@ handlers:
     script: main.app
     login: admin
     secure: always
+
+  - url: /static/(.*\.css)
+    static_files: static/\1
+    upload: static/(.*\.css)
+
+  - url: /static/(.*\.js)
+    static_files: static/\1
+    upload: static/(.*\.js)
+
+  - url: /
+    static_files: static/index.html
+    upload : static/index.html
 
   - url: /.*
     script: main.app

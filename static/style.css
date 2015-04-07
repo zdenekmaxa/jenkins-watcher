@@ -1,0 +1,108 @@
+body
+{
+    font: 90% 'Lucida Grande', Verdana, Geneva, Lucida, Arial, Helvetica,
+        sans-serif;
+    color: black;
+
+    width:90%;
+    height:90%;
+    margin:15px auto;
+}
+
+
+h1
+{
+    text-decoration: none;
+    color: black;
+    background-color: transparent;
+}
+
+
+p 
+{
+    margin: 0.5em 0 1em 0;
+    line-height: 1.5em;
+}
+
+
+h1, h2, h3, h4, h5, h6
+{
+    color: #003a6b;
+    background-color: transparent;
+    font: 100% 'Lucida Grande', Verdana, Geneva, Lucida, Arial, Helvetica,
+        sans-serif;
+    margin: 0;
+    padding-top: 0.5em;
+}
+
+h1 
+{
+    font-size: 300%;
+    margin-bottom: 0.5em;
+    color: black;
+    border-bottom: 1px;
+}
+
+h2 
+{
+    font-size: 200%;
+    margin-bottom: 0.5em;
+    border-bottom: 1px;
+    font-weight: bold;
+}
+
+h3 
+{
+    font-size: 130%;
+    margin-bottom: 0.5em;
+}
+
+h4 
+{
+    font-size: 110%;
+    font-weight: bold;
+}
+
+h5 
+{
+    font-size: 100%;
+    font-weight: bold;
+}
+
+h6 
+{
+    font-size: 70%;
+    font-weight: bold;
+}
+
+tr.SUCCESS
+{
+	background-color:#85FF85;
+}
+
+tr.FAILURE
+{
+    background-color:#FF7575;
+}
+
+tr.ABORTED
+{
+    
+    background-color:#BCBCBC;
+}
+
+td
+{
+    padding: 3px;
+}
+
+td.FAILURE
+{
+    background-color:#CC0000;
+}
+
+.bold_text
+{
+    font-weight: bold;
+}
+
