@@ -1,61 +1,62 @@
 <html>
-    <head>
-        <script src="static/angular.min.js"></script>
-        <script src="static/controller.js"></script>
-        <!-- test data
-        <script src="builds.js"></script>
-        -->
-        <title>jenkins-watcher: Jenkins Portal Selenium Builds</title>
+<head>
+    <script src="static/angular.min.js"></script>
+    <script src="static/controller.js"></script>
+    <!-- test data
+    <script src="builds.js"></script>
+    -->
+    <title>jenkins-watcher: Jenkins Portal Selenium Builds</title>
 
-        <link rel = StyleSheet href = "static/style.css" type = "text/css"/>
-    </head>
- 
-    <body ng-app="jenkinsWatcher">
-    <div ng-controller="mainController" align="center">
+    <link rel = StyleSheet href = "static/style.css" type = "text/css"/>
+</head>
+
+<body ng-app="jenkinsWatcher">
+<div ng-controller="mainController" align="center">
+    <br />
+    <h2>Jenkins Portal Selenium Builds</h2>
+    <div>
+        <span ng-show="buildsStats">
+            <div>Current time: {{ buildsStats.current_time}}</div>
+            <div>Displayed {{ buildsStats.num_builds }} total builds
+                 run in the last {{ buildsStats.days_limit }} day(s).
+             </div>
+        </span>
         <br />
-        <h2>Jenkins Portal Selenium Builds</h2>
-        <div>
-            <span ng-show="buildsStats">
-                <div>Data retrieved at: {{ buildsStats.current_time}}</div>
-                <div>Displayed {{ buildsStats.num_builds }} total builds
-                     run in the last {{ buildsStats.days_limit }} day(s).
-                 </div>
-            </span>
-        <br />
+
         <hr>
         P = passed, F = failed, S = skipped, E = error (number of occurrences)
         <div ng-repeat="(job_name, builds_history) in buildsStats.builds"
             align="left">
-        <div>
-            <span><h4>{{ job_name }}</h4></span>
-        <div>
-            <table>
-                <tr ng-repeat="build in builds_history" 
-                    class="{{ build.status}}">
-                    <td class="bold_text">#{{ build.build_id }}</td>
-                    <td>{{ build.timestamp }}</td>
-                    <td>{{ build.duration }}</td>
-                    <td>P:&nbsp;{{ build.passed }}</td>
-                    <td class="{{ build.status }}">
-                        F:&nbsp;{{ build.failed }}</td>
-                    <td>S:&nbsp;{{ build.skipped }}</td>
-                    <td>E:&nbsp;{{ build.error }}</td>
-                    <td><a target=_new href="http://lg-ci-01.endpoint.com:8080/job/{{ job_name }}/{{ build.build_id }}/console">output</a>
-                    </td>
-                </tr>
-            </table>
+            <div>
+                <span><h4>{{ job_name }}</h4></span>
+                <div>
+                    <table>
+                        <tr ng-repeat="build in builds_history"
+                            class="{{ build.status}}">
+                            <td class="bold_text">#{{ build.build_id }}</td>
+                            <td>{{ build.timestamp }}</td>
+                            <td>{{ build.duration }}</td>
+                            <td>P:&nbsp;{{ build.passed }}</td>
+                            <td class="{{ build.status }}">
+                                F:&nbsp;{{ build.failed }}</td>
+                            <td>S:&nbsp;{{ build.skipped }}</td>
+                            <td>E:&nbsp;{{ build.error }}</td>
+                            <td><a target=_new href="http://lg-ci-01.endpoint.com:8080/job/{{ job_name }}/{{ build.build_id }}/console">output</a>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+                <hr>
+                <br />
+                <br />
+            </div>
         </div>
-        <hr>
-        <br />
-        <br />
-        </div>
-      </div>
-      <span ng-show="myErrorMessage" align="center">
-          <br />
-          <br />
-          <div><h4>Error occurred: {{ myErrorMessage }}</h4></div>
-      </span>
+        <span ng-show="myErrorMessage" align="center">
+            <br />
+            <br />
+            <div><h4>Error occurred: {{ myErrorMessage }}</h4></div>
+        </span>
     </div>
-  </body>
-
+</div>
+</body>
 </html>
