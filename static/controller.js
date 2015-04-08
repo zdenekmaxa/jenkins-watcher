@@ -15,14 +15,15 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
             }).
             error(function(data, status, headers, config)
             {
-                console.log("error occurred: " + data.message + " status: " + status);
+                // if using interval functional to invoke automatically,
+                // will have to clear $scope.buildsStats, $scope.myErrorMessage
+                // explicitly
                 $scope.myErrorMessage = data.message;
+                console.log("error occurred: " + $scope.myErrorMessage + " status: " + status);
             });
     };
 
     getBuildsData();
-
-    console.log("message: " + $scope.myErrorMessage);
 
     // console.log($scope.buildsStats);
 
