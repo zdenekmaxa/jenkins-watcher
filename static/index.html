@@ -23,6 +23,13 @@
         </span>
         <br />
 
+        <div>How many days back:
+            <select ng-model="selected" ng-options="item.day for item in daysLimit">
+                <option value="">-- choose --</option>
+            </select>
+        </div>
+        <br />
+
         <hr>
         P = passed, F = failed, S = skipped, E = error (number of occurrences)
         <div ng-repeat="(job_name, builds_history) in buildsStats.builds"

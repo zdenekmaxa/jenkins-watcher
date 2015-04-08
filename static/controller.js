@@ -2,6 +2,12 @@ var jenkinsWatcher = angular.module('jenkinsWatcher', []);
 
 jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope, $http)
 {
+    // number of days to the history
+    // $scope.daysLimit = [1, 2, 3, 4, 5];
+    $scope.daysLimit = [ {day: 1}, {day: 2}, {day: 3}, {day: 4}, {day: 5} ];
+
+    console.log($scope.daysLimit);
+
     // test data, development data from <script src="builds.js"></script>
     // $scope.buildsStats = testBuildsStats;
 
