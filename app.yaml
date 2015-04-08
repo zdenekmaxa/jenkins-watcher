@@ -12,8 +12,6 @@ libraries:
     version: latest
   - name: setuptools
     version: latest
-  - name: jinja2
-    version: latest
 
 builtins:
   - deferred: on
