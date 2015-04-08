@@ -15,16 +15,16 @@
         <br />
         <h2>Jenkins Portal Selenium Builds</h2>
         <div>
-            <span ng-show="builds_stats">
-                <div>Data retrieved at: {{ builds_stats.current_time}}</div>
-                <div>Displayed {{ builds_stats.num_builds }} total builds
-                     run in the last {{ builds_stats.days_limit }} day(s).
+            <span ng-show="buildsStats">
+                <div>Data retrieved at: {{ buildsStats.current_time}}</div>
+                <div>Displayed {{ buildsStats.num_builds }} total builds
+                     run in the last {{ buildsStats.days_limit }} day(s).
                  </div>
             </span>
         <br />
         <hr>
         P = passed, F = failed, S = skipped, E = error (number of occurrences)
-        <div ng-repeat="(job_name, builds_history) in builds_stats.builds"
+        <div ng-repeat="(job_name, builds_history) in buildsStats.builds"
             align="left">
         <div>
             <span><h4>{{ job_name }}</h4></span>
@@ -45,6 +45,9 @@
                 </tr>
             </table>
         </div>
+        <span ng-show="myErrorMessage" align="center">
+            <div><h4>Error: {{ myErrorMessage }}</h4></div>
+        </span>
         <hr>
         <br />
         <br />

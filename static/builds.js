@@ -1,4 +1,4 @@
-var test_builds_stats = {
+var testBuildsStats = {
 current_time: "2015-04-07 11:45:12",
 num_builds: 75,
 builds: {

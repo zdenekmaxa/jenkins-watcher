@@ -1,27 +1,30 @@
 var jenkinsWatcher = angular.module('jenkinsWatcher', []);
 
-jenkinsWatcher.controller("mainController", 
-        ['$scope', '$http', function($scope, $http)
+jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope, $http)
 {
     // test data, development data from <script src="builds.js"></script>
-    // test_builds_stats ...
-    
-    // $scope.builds_stats = test_builds_stats;
+    // $scope.buildsStats = testBuildsStats;
 
     var getBuildsData = function()
     {
-        return $http({
-            method: 'GET',
-            url: 'https://jenkins-watcher.appspot.com/builds'
-        });
+        $http.get('https://jenkins-watcher.appspot.com/builds').
+            success(function(data, status, headers, config)
+            {
+                console.log("success, status: " + status);
+                $scope.buildsStats = data;
+            }).
+            error(function(data, status, headers, config)
+            {
+                console.log("error occurred: " + data.message + " status: " + status);
+                $scope.myErrorMessage = data.message;
+            });
     };
 
-    getBuildsData().success(function(response)
-    {
-        $scope.builds_stats = response;
-    });
+    getBuildsData();
 
-    // console.log($scope.builds_stats);
+    console.log("message: " + $scope.myErrorMessage);
+
+    // console.log($scope.buildsStats);
 
     // $scope.$apply();
     // angujar error message that operation is already in progress

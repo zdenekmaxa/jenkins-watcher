@@ -68,9 +68,15 @@ handlers:
     static_files: static/\1
     upload: static/(.*\.js)
 
+  - url: /static/(.*\.map)
+    static_files: static/\1
+    upload: static/(.*\.map)
+
   - url: /
     static_files: static/index.html
-    upload : static/index.html
+    upload: static/index.html
+    secure: always
+    login: required
 
   - url: /.*
     script: main.app

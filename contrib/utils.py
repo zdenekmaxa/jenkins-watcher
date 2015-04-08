@@ -5,6 +5,7 @@ Collection of helper goodies.
 
 
 import sys
+import json
 import datetime
 import pytz
 import logging as log
@@ -86,8 +87,10 @@ def access_restriction(handler_method):
     def check_login(self, *args, **kwargs):
         user = users.get_current_user()
         if not user:
-            # doesn't appear in the app engine logs ... weird
-            log.info("Access from anonymous user, redirecting to login page.")
+            # doesn't appear in the app engine logs when it's caught
+            # by app engine due to app.yaml url handler directives
+            msg = "Access from anonymous user, redirecting to login page."
+            log.info(msg)
             return self.redirect(users.create_login_url(self.request.url))
         if check_access_granted(user.email()):
             log.info("Access from user '%s' ... granted." % user.email())
@@ -95,7 +98,10 @@ def access_restriction(handler_method):
         else:
             msg = "User '%s' access denied." % user.email()
             log.warn(msg)
-            self.abort(401, detail=msg)
+            self.response.headers["Content-Type"] = "application/json"
+            self.response.set_status(401)
+            self.response.out.write(json.dumps(dict(message=msg)))
+            # self.abort(401, detail=msg)
 
     return check_login
 
