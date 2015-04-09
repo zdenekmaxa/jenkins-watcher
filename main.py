@@ -48,7 +48,7 @@ from google.appengine.ext import deferred
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
 from contrib.utils import get_current_timestamp_str, access_restriction, send_email
-from contrib.utils import exception_catcher
+from contrib.utils import exception_catcher, get_localized_timestamp_str
 
 
 class RequestHandler(webapp2.RequestHandler):
@@ -107,6 +107,8 @@ class RequestHandler(webapp2.RequestHandler):
             self.response.out.write("wrong argument: '%s'" % arg)
             return
         resp = BuildsStatisticsModel.get_builds_data(days_limit=days_limit)
+        update_at = ActivitySummaryModel.get_data()["builds_statistics_model_last_update_at"]
+        resp["builds_statistics_model_last_update_at"] = get_localized_timestamp_str(update_at)
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 

@@ -57,9 +57,12 @@ class TestJenkins(TestBase):
         # since the mock classes return empty values, this method
         # is tested only partially
         self.jenkins.update_builds_stats()
+        now = datetime.datetime.utcnow()
         asm = ActivitySummaryModel.get_data()
         assert asm["builds_stats_update_counter_total"] == 1
         assert asm["builds_stats_update_counter"] == 1
+        time_diff = now - asm["builds_statistics_model_last_update_at"]
+        assert time_diff.seconds <= 1
 
     def test_process_console_output(self):
         correct_results = {

@@ -58,6 +58,8 @@ class ActivitySummaryModel(ndb.Model):
     sent_emails_counter_total = ndb.IntegerProperty(default=0)
     stopped_builds_counter_total = ndb.IntegerProperty(default=0)
     builds_stats_update_counter_total = ndb.IntegerProperty(default=0)
+    # other
+    builds_statistics_model_last_update_at = ndb.DateTimeProperty()
 
     @staticmethod
     @ndb.transactional()
@@ -80,6 +82,8 @@ class ActivitySummaryModel(ndb.Model):
             counter = getattr(data, counter_name)
             counter += 1
             setattr(data, counter_name, counter)
+            if counter_name == "builds_stats_update_counter":
+                data.builds_statistics_model_last_update_at = datetime.datetime.utcnow()
         data.put()
 
     @staticmethod
@@ -95,7 +99,8 @@ class ActivitySummaryModel(ndb.Model):
                  stopped_builds_counter=data.stopped_builds_counter,
                  stopped_builds_counter_total=data.stopped_builds_counter_total,
                  builds_stats_update_counter=data.builds_stats_update_counter,
-                 builds_stats_update_counter_total=data.builds_stats_update_counter_total)
+                 builds_stats_update_counter_total=data.builds_stats_update_counter_total,
+                 builds_statistics_model_last_update_at=data.builds_statistics_model_last_update_at)
         r["current_time"] = get_current_timestamp_str()
         return r
 
