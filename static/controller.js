@@ -2,18 +2,20 @@ var jenkinsWatcher = angular.module('jenkinsWatcher', []);
 
 jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope, $http)
 {
-    // number of days to the history
-    // $scope.daysLimit = [1, 2, 3, 4, 5];
-    $scope.daysLimit = [ {day: 1}, {day: 2}, {day: 3}, {day: 4}, {day: 5} ];
-
-    console.log($scope.daysLimit);
+    // number of days to the history, 1 day is defined in html as default
+    $scope.daysLimit = [];
+    for (i = 2; i <= 10; i++) { $scope.daysLimit.push({value: i}) }
+    $scope.daysLimitCurrent = 1;
 
     // test data, development data from <script src="builds.js"></script>
     // $scope.buildsStats = testBuildsStats;
 
     var getBuildsData = function()
     {
-        $http.get('https://jenkins-watcher.appspot.com/builds').
+        // url = 'https://jenkins-watcher.appspot.com/builds';
+        url = '/builds' + '?days_limit=' + $scope.daysLimitCurrent;
+        // console.log("calling URL" + url);
+        $http.get(url).
             success(function(data, status, headers, config)
             {
                 console.log("success, status: " + status);
@@ -29,6 +31,22 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
             });
     };
 
+    // called only when the list-box daysLimitSelection selected value changes
+    $scope.$watch('daysLimitSelection', function(newValue, oldValue)
+    {
+        if ($scope.daysLimitSelection != undefined)
+        {
+            $scope.daysLimitCurrent = $scope.daysLimitSelection.value;
+            // console.log(newValue, oldValue);
+        }
+        else
+        {
+            $scope.daysLimitCurrent = 1;
+        }
+        console.log("days_limit value changed to: "  + $scope.daysLimitCurrent);
+        getBuildsData();
+    });
+
     getBuildsData();
 
     // console.log($scope.buildsStats);
@@ -37,5 +55,4 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
     // angujar error message that operation is already in progress
     // should check if data changed (if necessary) and call this apply
     // or have it removed
- 
 }]);
