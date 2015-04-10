@@ -23,6 +23,8 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
         // turns the spinner on
         $scope.showSpinner = true;
 
+        //var headers = { "Accept": "application/json" };
+        //headers["Cache-Control"] = "max-age=0, must-revalidate, private";
         $http.get(url).
             success(function(data, status, headers, config)
             {
