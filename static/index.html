@@ -1,7 +1,7 @@
 <html>
 <head>
-    <script src="static/angular.min.js"></script>
-    <script src="static/controller.js"></script>
+    <script src="/static/angular.min.js"></script>
+    <script src="/static/controller.js"></script>
     <!-- test data
     <script src="builds.js"></script>
     -->
@@ -66,6 +66,13 @@
             <div><h4>Error occurred: {{ myErrorMessage }}</h4></div>
         </span>
     </div>
+
+    <div ng-show="showSpinner" id="loadingshadowdivid" class="displayed">
+        <div class="loadingsigncentered">
+            <img src="/static/loading.gif"></img>
+        </div>
+    </div>
+
 </div>
 </body>
 </html>

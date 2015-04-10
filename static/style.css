@@ -7,6 +7,9 @@ body
     width:90%;
     height:90%;
     margin:15px auto;
+
+    background-image:url('/static/gradientfromtop.gif');
+	background-repeat:repeat-x;
 }
 
 
@@ -105,3 +108,41 @@ td.FAILURE
     font-weight: bold;
 }
 
+
+#loadingshadowdivid
+{
+    position:absolute;
+    width:100%;
+    height:0px;
+    z-index:1;
+    top:0px;
+    left:0px;
+    display:block;
+    background:transparent url('/static/shadow.gif') repeat;
+}
+
+
+div.loadingsigncentered
+{
+    position: fixed;
+    top: 45%;
+    left: 45%;
+}
+
+
+#loadingshadowdivid.displayed
+{
+    display:block;
+    position:fixed;
+    width:100%;
+    height:100%;
+    z-index:1
+}
+
+#loadingshadowdivid.hidden
+{
+    display: none;
+    width: 100%;
+    height: 0px;
+    z-index: -1;
+}

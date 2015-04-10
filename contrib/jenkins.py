@@ -298,6 +298,9 @@ class JenkinsInterface(object):
         ActivitySummaryModel.increase_counters(which_counters=["builds_stats_update_counter"])
         log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
 
+    # do not put exception catcher here, sometimes there are cancelled URL
+    # calls due to Jenkins taking too long to return response. in such situation
+    # the email quota could easily be consumed.
     def update_overview_check_running_builds(self):
         """
         Combines 2 actions - update overview data (info about currently

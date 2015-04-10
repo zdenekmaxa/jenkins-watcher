@@ -64,6 +64,10 @@ handlers:
     static_files: static/\1
     upload: static/(.*\.css)
 
+  - url: /static/(.*\.gif)
+    static_files: static/\1
+    upload: static/(.*\.gif)
+
   - url: /static/(.*\.js)
     static_files: static/\1
     upload: static/(.*\.js)

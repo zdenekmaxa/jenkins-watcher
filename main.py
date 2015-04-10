@@ -107,8 +107,10 @@ class RequestHandler(webapp2.RequestHandler):
             self.response.out.write("wrong argument: '%s'" % arg)
             return
         resp = BuildsStatisticsModel.get_builds_data(days_limit=days_limit)
-        update_at = ActivitySummaryModel.get_data()["builds_statistics_model_last_update_at"]
-        resp["builds_statistics_model_last_update_at"] = get_localized_timestamp_str(update_at)
+        asm = ActivitySummaryModel.get_data()
+        if asm:
+            resp["builds_statistics_model_last_update_at"] = \
+                get_localized_timestamp_str(asm["builds_statistics_model_last_update_at"])
         self.response.headers["Content-Type"] = "application/json"
         self.response.out.write(json.dumps(resp))
 

@@ -7,6 +7,11 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
     for (i = 2; i <= 10; i++) { $scope.daysLimit.push({value: i}) }
     $scope.daysLimitCurrent = 1;
 
+    // controlling loading spinner via
+    // document.getElementById("loadingshadowdivid").className = "hidden"; | "displayed"
+    // not successful, via document.readyState also no luck, this angulary way via $scope OK
+    $scope.showSpinner = false;
+
     // test data, development data from <script src="builds.js"></script>
     // $scope.buildsStats = testBuildsStats;
 
@@ -15,11 +20,15 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
         // url = 'https://jenkins-watcher.appspot.com/builds';
         url = '/builds' + '?days_limit=' + $scope.daysLimitCurrent;
         // console.log("calling URL" + url);
+        // turns the spinner on
+        $scope.showSpinner = true;
+
         $http.get(url).
             success(function(data, status, headers, config)
             {
                 console.log("success, status: " + status);
                 $scope.buildsStats = data;
+                $scope.showSpinner = false;
             }).
             error(function(data, status, headers, config)
             {
@@ -28,6 +37,7 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
                 // explicitly
                 $scope.myErrorMessage = data.message;
                 console.log("error occurred: " + $scope.myErrorMessage + " status: " + status);
+                $scope.showSpinner = false;
             });
     };
 
@@ -47,7 +57,8 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
         getBuildsData();
     });
 
-    getBuildsData();
+    // with this call, the function gets called twice (second time from watch)
+    // getBuildsData();
 
     // console.log($scope.buildsStats);
 
@@ -55,4 +66,5 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
     // angujar error message that operation is already in progress
     // should check if data changed (if necessary) and call this apply
     // or have it removed
+
 }]);
