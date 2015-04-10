@@ -15,7 +15,7 @@ from contrib.utils import get_localized_timestamp_str, get_current_timestamp_str
 
 OVERVIEW_MODEL_ID_KEY = 1
 MEMCACHE_OVERVIEW_KEY = "MEMCACHE_OVERVIEW_KEY"
-MEMCACHE_BUILDS_KEY_BASE = "MEMCACHE_BUILDS_KEY_BASE"
+MEMCACHE_BUILDS_KEY = "MEMCACHE_BUILDS_KEY"
 ACTIVITY_SUMMARY_MODEL_ID_KEY = 1
 
 
@@ -137,6 +137,15 @@ class BuildsStatisticsModel(ndb.Model):
     # raise _ToDatastoreError(err) BadRequestError: queries inside transactions must have ancestors
     #@ndb.transactional()
     def get_builds_data(days_limit=1):
+        mem_builds = memcache.get(MEMCACHE_BUILDS_KEY)
+        if mem_builds and days_limit in mem_builds:
+            log.debug("Taking builds stats data from memcache (days_limit: %s) ..." % days_limit)
+            data = mem_builds[days_limit]
+            data["current_time"] = get_current_timestamp_str()
+            return data
+        log.debug("Builds stats data not in memcache, querying datastore "
+                  "(days_limit: %s) ..." % days_limit)
+
         cond = datetime.datetime.utcnow() - datetime.timedelta(days=days_limit)
         # order should be the same as BuildsStatistics.name, BuildsStatistics.ts
         # this will already be ordered by job name and then by build id (since keys are such)
@@ -167,5 +176,7 @@ class BuildsStatisticsModel(ndb.Model):
             finally:
                 data["num_builds"] += 1
         data["builds"] = res_builds
+        log.debug("Stored builds stats data in memcache (days_limit: %s)." % days_limit)
+        memcache.set(MEMCACHE_BUILDS_KEY, {days_limit: data})
         data["current_time"] = get_current_timestamp_str()
         return data

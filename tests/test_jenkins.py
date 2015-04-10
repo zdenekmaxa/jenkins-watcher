@@ -14,7 +14,7 @@ from google.appengine.api import memcache
 
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
-from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY
+from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY, MEMCACHE_BUILDS_KEY
 
 from tests.base import TestBase, Build
 
@@ -63,6 +63,7 @@ class TestJenkins(TestBase):
         assert asm["builds_stats_update_counter"] == 1
         time_diff = now - asm["builds_statistics_model_last_update_at"]
         assert time_diff.seconds <= 1
+        assert memcache.get(MEMCACHE_BUILDS_KEY) == None
 
     def test_process_console_output(self):
         correct_results = {
@@ -107,3 +108,18 @@ class TestJenkins(TestBase):
     def test_check_running_build(self):
         self.jenkins.check_running_build(job_name="Selenium_Portal_MTV_development_sandbox",
                                          current_build_id=66)
+
+    def test_builds_stats_model_in_memcache(self):
+        self.jenkins.process_build_info_and_store(build=Build(),
+                                                  job_name="Selenium_Portal_MTV_development_sandbox",
+                                                  timestamp=datetime.datetime.now(),
+                                                  build_id=51,
+                                                  status="FAILED")
+        builds = BuildsStatisticsModel.get_builds_data(days_limit=1)
+        assert memcache.get(MEMCACHE_BUILDS_KEY)[1]
+        builds = BuildsStatisticsModel.get_builds_data(days_limit=2)
+        assert memcache.get(MEMCACHE_BUILDS_KEY)[2]
+        assert (3 in memcache.get(MEMCACHE_BUILDS_KEY)) is False
+        ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY).put()
+        self.jenkins.update_builds_stats()
+        assert memcache.get(MEMCACHE_BUILDS_KEY) == None

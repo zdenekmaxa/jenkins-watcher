@@ -14,12 +14,13 @@ import pytz
 from jenkinsapi.jenkins import Jenkins
 
 from google.appengine.ext import deferred
+from google.appengine.api import memcache
 
 from config import user_name, access_token, job_names, jenkins_url
 from contrib.utils import get_localized_timestamp_str, get_current_timestamp_str
 from contrib.utils import send_email
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
-from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY
+from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY, MEMCACHE_BUILDS_KEY
 
 
 # console output processing compiled regular expression patterns
@@ -296,6 +297,7 @@ class JenkinsInterface(object):
                                                   build_id=bid,
                                                   status=status)
         ActivitySummaryModel.increase_counters(which_counters=["builds_stats_update_counter"])
+        memcache.set(MEMCACHE_BUILDS_KEY, None)
         log.info("Finished update builds stats at '%s'" % get_current_timestamp_str())
 
     # do not put exception catcher here, sometimes there are cancelled URL
