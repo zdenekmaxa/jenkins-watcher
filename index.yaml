@@ -1,0 +1,6 @@
+indexes:
+
+- kind: BuildsStatisticsModel
+  properties:
+  - name: __key__
+    direction: desc
