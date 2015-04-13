@@ -98,9 +98,7 @@ def access_restriction(handler_method):
         else:
             msg = "User '%s' access denied." % user.email()
             log.warn(msg)
-            self.response.headers["Content-Type"] = "application/json"
-            self.response.set_status(401)
-            self.response.out.write(json.dumps(dict(message=msg)))
+            self.return_json_error(401, msg)
             # self.abort(401, detail=msg)
 
     return check_login
@@ -116,15 +114,16 @@ def exception_catcher(handler_method):
 
     """
     # without this: AttributeError: 'JenkinsInterface' object has no attribute 'inner'
-    @wraps(handler_method)
-    def inner(*args, **kwargs):
+    #@wraps(handler_method)
+    def inner(self, *args, **kwargs):
         try:
-            handler_method(*args, **kwargs)
+            handler_method(self, *args, **kwargs)
         except Exception as ex:
             subject = "exception occurred"
             # trace = ''.join(traceback.format_exception(*sys.exc_info()))
             body = str(ex) + "\n\n" + traceback.format_exc()
             send_email(subject=subject, body=body)
-            raise
+            log.exception(ex)
+            self.return_json_error(500, "Internal application error occurred.")
 
     return inner

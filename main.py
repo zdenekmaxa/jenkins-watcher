@@ -51,7 +51,14 @@ from contrib.utils import get_current_timestamp_str, access_restriction, send_em
 from contrib.utils import exception_catcher, get_localized_timestamp_str
 
 
-class RequestHandler(webapp2.RequestHandler):
+class BaseRequestHandler(webapp2.RequestHandler):
+    def return_json_error(self, status, msg):
+        self.response.headers["Content-Type"] = "application/json"
+        self.response.set_status(status)
+        self.response.out.write(json.dumps(dict(message=msg)))
+
+
+class RequestHandler(BaseRequestHandler):
     @access_restriction
     @exception_catcher
     def get_overview(self):
