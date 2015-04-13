@@ -59,7 +59,7 @@ class ActivitySummaryModel(ndb.Model):
     stopped_builds_counter_total = ndb.IntegerProperty(default=0)
     builds_stats_update_counter_total = ndb.IntegerProperty(default=0)
     # other
-    builds_statistics_model_last_update_at = ndb.DateTimeProperty()
+    builds_statistics_model_last_update_at = ndb.DateTimeProperty(auto_now_add=True)
 
     @staticmethod
     @ndb.transactional()
@@ -100,7 +100,8 @@ class ActivitySummaryModel(ndb.Model):
                  stopped_builds_counter_total=data.stopped_builds_counter_total,
                  builds_stats_update_counter=data.builds_stats_update_counter,
                  builds_stats_update_counter_total=data.builds_stats_update_counter_total,
-                 builds_statistics_model_last_update_at=data.builds_statistics_model_last_update_at)
+                 builds_statistics_model_last_update_at=
+                    get_localized_timestamp_str(data.builds_statistics_model_last_update_at))
         r["current_time"] = get_current_timestamp_str()
         return r
 

@@ -110,10 +110,10 @@ class RequestHandler(webapp2.RequestHandler):
         asm = ActivitySummaryModel.get_data()
         if asm:
             resp["builds_statistics_model_last_update_at"] = \
-                get_localized_timestamp_str(asm["builds_statistics_model_last_update_at"])
+                asm["builds_statistics_model_last_update_at"]
         self.response.headers["Content-Type"] = "application/json"
         # seconds (10minutes)
-        self.response.headers["Cache-Control"] = "max-age=600, must-revalidate, private"
+        self.response.headers["Cache-Control"] = "max-age=600"  # , must-revalidate, private"
         # self.response.cache_control = 'public'
         # self.response.cache_control.max_age = 600
         self.response.out.write(json.dumps(resp))

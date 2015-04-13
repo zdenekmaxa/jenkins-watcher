@@ -15,6 +15,7 @@ from google.appengine.api import memcache
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
 from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY, MEMCACHE_BUILDS_KEY
+from contrib.utils import get_localized_timestamp_str
 
 from tests.base import TestBase, Build
 
@@ -58,10 +59,10 @@ class TestJenkins(TestBase):
         # is tested only partially
         self.jenkins.update_builds_stats()
         now = datetime.datetime.utcnow()
-        asm = ActivitySummaryModel.get_data()
-        assert asm["builds_stats_update_counter_total"] == 1
-        assert asm["builds_stats_update_counter"] == 1
-        time_diff = now - asm["builds_statistics_model_last_update_at"]
+        asm_data = ActivitySummaryModel.get_by_id(ACTIVITY_SUMMARY_MODEL_ID_KEY)
+        assert asm_data.builds_stats_update_counter_total == 1
+        assert asm_data.builds_stats_update_counter == 1
+        time_diff = now - asm_data.builds_statistics_model_last_update_at
         assert time_diff.seconds <= 1
         assert memcache.get(MEMCACHE_BUILDS_KEY) == None
 
