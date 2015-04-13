@@ -150,7 +150,8 @@ class BuildsStatisticsModel(ndb.Model):
         cond = datetime.datetime.utcnow() - datetime.timedelta(days=days_limit)
         # order should be the same as BuildsStatistics.name, BuildsStatistics.ts
         # this will already be ordered by job name and then by build id (since keys are such)
-        query = BuildsStatisticsModel.query().order(BuildsStatisticsModel.key)
+        # now do reverse order so that newest appear first on the webpage
+        query = BuildsStatisticsModel.query().order(-BuildsStatisticsModel.key)
         builds = query.fetch()  # returns list of builds, of BuildsStatistics objects
 
         # BadRequestError: The first sort property must be the same as the property to which the
