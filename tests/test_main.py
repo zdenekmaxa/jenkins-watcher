@@ -3,6 +3,7 @@ Simple high-level tests for stuff called from the main.py module.
 
 """
 
+import json
 import pprint
 
 # sets up paths, do before any GAE or project specific imports
@@ -42,6 +43,10 @@ class TestMain(TestBase):
         send_email(subject="activity summary",
                    body="activity summary: " + "\n\n" + formatted_data)
         ActivitySummaryModel.reset()
+
+    def test_get_activity_summary(self):
+        resp = ActivitySummaryModel.get_data()
+        json.dumps(resp)
 
     def test_update_overview_check_running_builds(self):
         ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY).put()

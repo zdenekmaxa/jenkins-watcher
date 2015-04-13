@@ -139,7 +139,7 @@ class BuildsStatisticsModel(ndb.Model):
     #@ndb.transactional()
     def get_builds_data(days_limit=1):
         mem_builds = memcache.get(MEMCACHE_BUILDS_KEY)
-        if mem_builds and days_limit in mem_builds:
+        if mem_builds and (days_limit in mem_builds):
             log.debug("Taking builds stats data from memcache (days_limit: %s) ..." % days_limit)
             data = mem_builds[days_limit]
             data["current_time"] = get_current_timestamp_str()
@@ -177,7 +177,12 @@ class BuildsStatisticsModel(ndb.Model):
             finally:
                 data["num_builds"] += 1
         data["builds"] = res_builds
+        if mem_builds:
+            assert days_limit not in mem_builds  # would have been taken from memcache otherwise
+            mem_builds.update({days_limit: data})
+            memcache.set(MEMCACHE_BUILDS_KEY, mem_builds)
+        else:
+            memcache.set(MEMCACHE_BUILDS_KEY, {days_limit: data})
         log.debug("Stored builds stats data in memcache (days_limit: %s)." % days_limit)
-        memcache.set(MEMCACHE_BUILDS_KEY, {days_limit: data})
         data["current_time"] = get_current_timestamp_str()
         return data

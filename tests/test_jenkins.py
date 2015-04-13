@@ -117,9 +117,22 @@ class TestJenkins(TestBase):
                                                   build_id=51,
                                                   status="FAILED")
         builds = BuildsStatisticsModel.get_builds_data(days_limit=1)
-        assert memcache.get(MEMCACHE_BUILDS_KEY)[1]
+        # current time is added, remove from the comparison
+        del builds["current_time"]
+        assert memcache.get(MEMCACHE_BUILDS_KEY)[1] == builds
+        assert (0 in memcache.get(MEMCACHE_BUILDS_KEY)) is False
+        assert (1 in memcache.get(MEMCACHE_BUILDS_KEY)) is True
+        assert (2 in memcache.get(MEMCACHE_BUILDS_KEY)) is False
+        assert (3 in memcache.get(MEMCACHE_BUILDS_KEY)) is False
+        prev_builds_resp = builds
         builds = BuildsStatisticsModel.get_builds_data(days_limit=2)
-        assert memcache.get(MEMCACHE_BUILDS_KEY)[2]
+        # current time is added, remove from the comparison
+        del builds["current_time"]
+        assert memcache.get(MEMCACHE_BUILDS_KEY)[2] == builds
+        assert memcache.get(MEMCACHE_BUILDS_KEY)[1] == prev_builds_resp
+        assert (0 in memcache.get(MEMCACHE_BUILDS_KEY)) is False
+        assert (1 in memcache.get(MEMCACHE_BUILDS_KEY)) is True
+        assert (2 in memcache.get(MEMCACHE_BUILDS_KEY)) is True
         assert (3 in memcache.get(MEMCACHE_BUILDS_KEY)) is False
         ActivitySummaryModel(id=ACTIVITY_SUMMARY_MODEL_ID_KEY).put()
         self.jenkins.update_builds_stats()
