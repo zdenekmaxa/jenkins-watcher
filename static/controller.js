@@ -4,7 +4,7 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
 {
     // number of days to the history, 1 day is defined in html as default
     $scope.daysLimit = [];
-    for (i = 2; i <= 10; i++) { $scope.daysLimit.push({value: i}) }
+    for (i = 2; i <= 15; i++) { $scope.daysLimit.push({value: i}) }
     $scope.daysLimitCurrent = 1;
 
     // controlling loading spinner via

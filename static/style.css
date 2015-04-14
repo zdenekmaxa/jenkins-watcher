@@ -4,8 +4,8 @@ body
         sans-serif;
     color: black;
 
-    width:90%;
-    height:90%;
+    width:75%;
+    height:75%;
     margin:15px auto;
 
     background-image:url('/static/gradientfromtop.gif');
@@ -78,9 +78,20 @@ h6
     font-weight: bold;
 }
 
+td
+{
+    padding: 3px;
+}
+
 tr.SUCCESS
 {
 	background-color:#85FF85;
+}
+
+span.SUCCESS
+{
+	background-color:#85FF85;
+	padding: 3px;
 }
 
 tr.FAILURE
@@ -88,13 +99,20 @@ tr.FAILURE
     background-color:#FF7575;
 }
 
+span.FAILURE
+{
+    background-color:#FF7575;
+    padding: 3px;
+}
+
 tr.ABORTED
 {
     background-color:#BCBCBC;
 }
 
-td
+span.ABORTED
 {
+    background-color:#BCBCBC;
     padding: 3px;
 }
 
@@ -107,7 +125,6 @@ td.FAILURE
 {
     font-weight: bold;
 }
-
 
 #loadingshadowdivid
 {

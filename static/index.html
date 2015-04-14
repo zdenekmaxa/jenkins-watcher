@@ -1,5 +1,7 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN">
 <html>
 <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
     <script src="/static/angular.min.js"></script>
     <script src="/static/controller.js"></script>
     <!-- test data
@@ -14,28 +16,42 @@
 <div ng-controller="mainController" align="center">
     <br />
     <h2>Jenkins Portal Selenium Builds</h2>
+    <br />
     <div>
-        <span ng-show="buildsStats">
-            <div>Current time: {{ buildsStats.current_time}}</div>
-            <div>Displayed {{ buildsStats.num_builds }} total builds
-                 run in the last {{ buildsStats.days_limit }} day(s).
-             </div>
-            <div>Last builds statistics update at: {{ buildsStats.builds_statistics_model_last_update_at }}
-            </div>
-        </span>
+        <div align="left">
+            <span ng-show="buildsStats">
+                <div>Current time: <span class="bold_text">{{ buildsStats.current_time}}</span></div>
+                <div>Displayed <span class="bold_text">{{ buildsStats.num_builds }}</span> total builds
+                     run in the last <span class="bold_text">{{ buildsStats.days_limit }} day(s).</span></div>
+                <div>Displayed statistics last update at:
+                    <span class="bold_text">{{ buildsStats.builds_statistics_model_last_update_at }}</span></div>
+            </span>
+        </div>
         <br />
 
-        <div>How many days back:
+        <div align="left">How many days back:
             <select ng-model="daysLimitSelection" ng-options="item.value for item in daysLimit">
                 <option value="">1</option>
             </select>
         </div>
         <br />
-
         <hr>
-        P = passed, F = failed, S = skipped, E = error (number of occurrences)
-        <div ng-repeat="(job_name, builds_history) in buildsStats.builds"
-            align="left">
+        <div align="left">
+            <div>P = passed, F = failed, S = skipped, E = error (number of test case result occurrences)</div>
+            <div>timestamps - start of a build inCET/CEST times</div>
+            <br />
+            <div>
+                <span class="SUCCESS">successful build</span>&nbsp;
+                <span class="FAILURE">failed build</span>&nbsp;
+                <span class="ABORTED">aborted build (took too long)</span>&nbsp;
+            </div>
+        </div>
+        <br />
+        <hr>
+        <br />
+        <br />
+
+        <div ng-repeat="(job_name, builds_history) in buildsStats.builds" align="left">
             <div>
                 <span><h4>{{ job_name }}</h4></span>
                 <div>
