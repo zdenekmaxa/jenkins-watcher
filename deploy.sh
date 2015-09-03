@@ -6,9 +6,12 @@ if [ "x$1" == "x" ] ; then
 fi
 
 appid=$1
+version="v0-4"
 # old way with Google App Engine SDK
 # appcfg.py --oauth2 update -A $appid .
 # new way via Google Cloud SDK
 # appid = jenkins-watcher
-gcloud preview app deploy . --project $appid
+# version is no longer part of the app.yaml but specified
+# explicitly on CLI
+gcloud preview app deploy ./app.yaml --project $appid --version $version --verbosity debug
 # localhost run: gcloud preview app run .
