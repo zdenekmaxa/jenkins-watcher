@@ -18,3 +18,6 @@ verbosity=warning
 # explicitly on CLI
 gcloud preview app deploy ./app.yaml --project $appid --version $version --verbosity $verbosity
 # localhost run: gcloud preview app run .
+
+# start on localhost:
+# $PREFIX/platform/google_appengine/dev_appserver.py .

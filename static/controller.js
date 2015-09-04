@@ -69,4 +69,11 @@ jenkinsWatcher.controller("mainController", ['$scope', '$http', function($scope,
     // should check if data changed (if necessary) and call this apply
     // or have it removed
 
+    $scope.reload_page = function() {
+        // putting this code directly into ng-click did not work
+        // <!-- <button ng-click="console.log('clicked');">Refresh</button>
+        console.log("Reloading page ...")
+        window.location.reload();
+    };
+
 }]);
