@@ -220,7 +220,7 @@ class JenkinsInterface(object):
         duration = str(build.get_duration()).split('.')[0]
         console_output = build.get_console()
         result = self.process_console_output(console_output)
-        key_id = "%s-%s" % (job_name, build_id)
+        key_id = BuildsStatisticsModel.construct_datastore_key_id(job_name, build_id)
         builds_stats = BuildsStatisticsModel(id=key_id,
                                              name=job_name,
                                              bid=build_id,
@@ -285,7 +285,7 @@ class JenkinsInterface(object):
                     continue
                 # this build considered finished now
                 # check if we have not hit a build which is already stored
-                key_id = "%s-%s" % (job_name, bid)
+                key_id = BuildsStatisticsModel.construct_datastore_key_id(job_name, bid)
                 if BuildsStatisticsModel.get_by_id(key_id) is not None:
                     log.debug("%s #%s is already stored, going to the "
                               "next job type ..." % (job_name, bid))

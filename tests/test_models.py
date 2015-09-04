@@ -6,6 +6,8 @@ Unittests for data models classes.
 # sets up paths, do before any GAE or project specific imports
 import setup
 
+import datetime
+
 from google.appengine.ext import testbed
 from google.appengine.api import memcache
 
@@ -14,7 +16,7 @@ from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatistics
 from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY
 
 from tests.base import TestBase
-
+from tests.base import Build
 
 class TestModels(TestBase):
 
@@ -69,9 +71,44 @@ class TestModels(TestBase):
         assert asm["builds_stats_update_counter_total"] == 166
         assert asm["builds_stats_update_counter"] == 1
 
-
     def test_builds_statistics_model_get_builds_data(self):
         initialization()
         b = BuildsStatisticsModel.get_builds_data()
         assert len(b["builds"]) == 0
         assert b["num_builds"] == 0
+
+    def test_builds_statistics_model_correct_order(self):
+        """
+        The data are sorted according to the key which is constructed
+        as follows:
+        job_name-build_id
+
+        Later on datastore retrieval, build id 99 comes after 100, which
+        is wrong.
+
+        """
+        def store_build(job_name, build_id):
+            # just helper mock object
+            build = Build()
+            key_id = BuildsStatisticsModel.construct_datastore_key_id(job_name, build_id)
+            builds_stats = BuildsStatisticsModel(id=key_id,
+                                                 name=job_name,
+                                                 bid=build_id,
+                                                 ts=build.get_timestamp().replace(tzinfo=None))
+            builds_stats.put()
+
+        initialization()
+        job_name = "Selenium_Portal_MTV_topic_selenium_sandbox"
+        # store one build
+        build_id = 99
+        store_build(job_name, build_id)
+        # store another build
+        build_id = 100
+        store_build(job_name, build_id)
+        # retrieve
+        data = BuildsStatisticsModel.get_builds_data()
+        # since the build go on the page in reverse order
+        # builds[job_name][0].build_id 100 must be
+        # before build_id 99
+        assert data["builds"][job_name][0]["build_id"] == 100
+        assert data["builds"][job_name][1]["build_id"] == 99

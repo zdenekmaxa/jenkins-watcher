@@ -160,6 +160,15 @@ class BuildsStatisticsModel(ndb.Model):
         # -> do the timestamp filtering on my own ... (can't combine ordering and filtering
         # arbitrarily)
 
+        # TODO
+        # do filtering by datastore
+        # this way all data is read (takes long and quota is immediately exceeded)
+        # and ordering on my own
+        # this method needs to be reimplemented, this is also answer to the slowness
+
+        # free read quota is just 50k operations, with ~10k of builds in datastore, it's
+        # easy to exceed
+
         data = dict(days_limit=days_limit,
                     num_builds=0,
                     builds={})
@@ -170,8 +179,10 @@ class BuildsStatisticsModel(ndb.Model):
             if b.ts < cond:
                 continue
             res_build = copy.deepcopy(b.to_dict())
+            # remove the job name from each build
             del res_build["job_name"]
             try:
+                # job name server here as a key for the dict of builds
                 res_builds[b.name].append(res_build)
             except KeyError:
                 res_builds[b.name] = [res_build]
@@ -187,3 +198,7 @@ class BuildsStatisticsModel(ndb.Model):
         log.debug("Stored builds stats data in memcache (days_limit: %s)." % days_limit)
         data["current_time"] = get_current_timestamp_str()
         return data
+
+    @staticmethod
+    def construct_datastore_key_id(job_name, build_id):
+        return "%s-%010d" % (job_name, build_id)

@@ -36,6 +36,7 @@ TODO:
 """
 
 
+import datetime
 import json
 import pprint
 import logging
@@ -125,6 +126,39 @@ class RequestHandler(BaseRequestHandler):
         # self.response.cache_control.max_age = 600
         self.response.out.write(json.dumps(resp))
 
+    def print_builds(self):
+        """
+        Debugging route, print all present builds stats datastore entries.
+
+        """
+        t_start = datetime.datetime.now()
+        query = BuildsStatisticsModel.query()
+        builds = query.fetch()
+
+        t_end = datetime.datetime.now()
+        msg = "Current time: %s<br/>" % datetime.datetime.now()
+        msg += "Retrieving data lasted: %s [sec]<br/>" % (t_end - t_start).seconds
+        msg += "Retrieved builds from datastore: %s<br/><br/>" % len(builds)
+        self.response.out.write(msg)
+        self.response.out.write(builds[0])
+        #for job_name in resp["builds"]:
+        #    for b in resp["builds"][job_name]:
+
+        # TODO
+        # print just keys and maybe build_ids on its own
+        # this will be basis for datastore keys migration
+        # is it possible to change datastore key?
+
+        # the current print looks like this:
+        #BuildsStatisticsModel(key=Key('BuildsStatisticsModel', 'Selenium_Portal_MTV_development_public-299'), bid=299, duration=u'0:17:39', error=0, failed=0, name=u'Selenium_Portal_MTV_development_public', passed=28, skipped=5, status=u'SUCCESS', ts=datetime.datetime(2015, 4, 2, 1, 35, 29))
+
+        # iterate over builds
+        #{'current_time': '2015-09-04 16:45:57', 'num_builds': 2,
+        #    'builds': {u'Selenium_Portal_MTV_topic_selenium_sandbox':
+        #                   [{'status': u'', 'build_id': 100, 'skipped': 0, 'timestamp': '2015-09-04 16:45:57', 'failed': 0, 'passed': 0, 'error': 0, 'duration': u''},
+        #                    {'status': u'', 'build_id': 99, 'skipped': 0, 'timestamp': '2015-09-04 16:45:57', 'failed': 0, 'passed': 0, 'error': 0, 'duration': u''}]},
+        #    'days_limit': 1}
+
 
 # adjust logging
 LOG_FORMAT = "[%(module)s::%(funcName)s:%(lineno)s] %(message)s"
@@ -150,7 +184,7 @@ routes = [
               handler="main.RequestHandler:update_overview_check_running_builds",
               name="update_overview_check_running_builds",
               methods=["GET", ])
-        ]),
+    ]),
     Route(r"/builds",
           handler="main.RequestHandler:get_builds_stats",
           name="get_builds_stats",
@@ -160,17 +194,17 @@ routes = [
               handler="main.RequestHandler:update_builds",
               name="update_builds",
               methods=["GET", ])
-          ]),
+    ]),
     Route(r"/activity",
           handler="main.RequestHandler:get_activity_summary",
           name="get_activity_summary",
           methods=["GET", ]),
-    PathPrefixRoute(r"/activity", [
-        Route(r"/send",
-              handler="main.RequestHandler:send_activity_summary",
-              name="send_activity_summary",
+    PathPrefixRoute(r"/datastore", [
+        Route(r"/buids",
+              handler="main.RequestHandler:print_builds",
+              name="print_builds",
               methods=["GET", ])
-        ])
+    ])
 ]
 
 # application instance
