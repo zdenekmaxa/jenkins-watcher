@@ -108,7 +108,7 @@ class ActivitySummaryModel(ndb.Model):
 
 class BuildsStatisticsModel(ndb.Model):
     # key id will be job name (i.e. jenkins project name) + build id: 'build_name-build_id',
-    # particularly: "%s-%010d" % (job_name, build_id)
+    # particularly: "%s-%015d" % (job_name, build_id)
     name = ndb.StringProperty(default="")
     bid = ndb.IntegerProperty(default=0)
     status = ndb.StringProperty(default="")
@@ -193,4 +193,4 @@ class BuildsStatisticsModel(ndb.Model):
 
     @staticmethod
     def construct_datastore_key_id(job_name, build_id):
-        return "%s-%010d" % (job_name, build_id)
+        return "%s-%015d" % (job_name, build_id)

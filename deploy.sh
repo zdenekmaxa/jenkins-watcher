@@ -6,7 +6,7 @@ if [ "x$1" == "x" ] ; then
 fi
 
 appid=$1
-version="v0-5"
+version="v0-6"
 verbosity=warning
 #verbosity=debug
 

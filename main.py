@@ -128,36 +128,38 @@ class RequestHandler(BaseRequestHandler):
 
     def print_builds(self):
         """
-        Debugging route, print all present builds stats datastore entries.
+        Debugging route, print some builds stats datastore entries.
+        This could serve as basis for data migration (changing the
+        BuildsStatisticsModel key ids) to "%s-%010d" % (job_name, build_id)
+        format.
+
+        Currently it's mixed - some items are according to this format,
+        previous, old data, is just without padding zeros.
+
+        Need to find out whether it's possible to update key on a datastore
+        items, probably have to read the item and re-save under modified key:
+        read all items one by one, delete and store under new key.
 
         """
-        t_start = datetime.datetime.now()
-        query = BuildsStatisticsModel.query().order(-BuildsStatisticsModel.key)
-        builds = query.fetch()
+        # the order should be the same as BuildsStatistics.name, BuildsStatistics.ts
+        # this will already be ordered by job name and then by build id (since keys are such)
+        # now do reverse order so that newest appear first on the web page
+        now = datetime.datetime.utcnow()
+        time_condition = now - datetime.timedelta(days=1)
+        # select only last day builds
+        query = BuildsStatisticsModel.query(BuildsStatisticsModel.ts > time_condition)
+        # reverse sort
+        builds = sorted(query.fetch(), key=lambda x: x.key, reverse=True)
 
         t_end = datetime.datetime.now()
         msg = "Current time: %s<br/>" % datetime.datetime.now()
-        msg += "Retrieving data lasted: %s [sec]<br/>" % (t_end - t_start).seconds
+        msg += "Retrieving data lasted: %s [sec]<br/>" % (t_end - now).seconds
         msg += "Retrieved builds from datastore: %s<br/><br/>" % len(builds)
         self.response.out.write(msg)
-        self.response.out.write(builds[0])
-        #for job_name in resp["builds"]:
-        #    for b in resp["builds"][job_name]:
-
-        # TODO
-        # print just keys and maybe build_ids on its own
-        # this will be basis for datastore keys migration
-        # is it possible to change datastore key?
-
-        # the current print looks like this:
-        #BuildsStatisticsModel(key=Key('BuildsStatisticsModel', 'Selenium_Portal_MTV_development_public-299'), bid=299, duration=u'0:17:39', error=0, failed=0, name=u'Selenium_Portal_MTV_development_public', passed=28, skipped=5, status=u'SUCCESS', ts=datetime.datetime(2015, 4, 2, 1, 35, 29))
-
-        # iterate over builds
-        #{'current_time': '2015-09-04 16:45:57', 'num_builds': 2,
-        #    'builds': {u'Selenium_Portal_MTV_topic_selenium_sandbox':
-        #                   [{'status': u'', 'build_id': 100, 'skipped': 0, 'timestamp': '2015-09-04 16:45:57', 'failed': 0, 'passed': 0, 'error': 0, 'duration': u''},
-        #                    {'status': u'', 'build_id': 99, 'skipped': 0, 'timestamp': '2015-09-04 16:45:57', 'failed': 0, 'passed': 0, 'error': 0, 'duration': u''}]},
-        #    'days_limit': 1}
+        self.response.out.write("<br /><br />")
+        for b in builds:
+            self.response.out.write(b)
+            self.response.out.write("<br />")
 
 
 # adjust logging
@@ -200,7 +202,7 @@ routes = [
           name="get_activity_summary",
           methods=["GET", ]),
     PathPrefixRoute(r"/datastore", [
-        Route(r"/buids",
+        Route(r"/builds",
               handler="main.RequestHandler:print_builds",
               name="print_builds",
               methods=["GET", ])
