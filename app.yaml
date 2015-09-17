@@ -64,6 +64,11 @@ handlers:
     login: admin
     secure: always
 
+  - url: /datastore/migrate
+    script: main.app
+    login: admin
+    secure: always
+
   - url: /static/(.*\.css)
     static_files: static/\1
     upload: static/(.*\.css)

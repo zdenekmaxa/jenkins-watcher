@@ -29,10 +29,6 @@ NOTES:
 REFERENCE:
     self.request.body
 
-
-TODO:
-    experiment with sms alerts
-
 """
 
 
@@ -50,6 +46,7 @@ from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initializati
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
 from contrib.utils import get_current_timestamp_str, access_restriction, send_email
 from contrib.utils import exception_catcher, get_localized_timestamp_str
+from contrib.migrations import migrate_01
 
 
 class BaseRequestHandler(webapp2.RequestHandler):
@@ -129,16 +126,9 @@ class RequestHandler(BaseRequestHandler):
     def print_builds(self):
         """
         Debugging route, print some builds stats datastore entries.
-        This could serve as basis for data migration (changing the
-        BuildsStatisticsModel key ids) to "%s-%010d" % (job_name, build_id)
+        This serves as basis for data migration (changing the
+        BuildsStatisticsModel key ids) to "%s-%015d" % (job_name, build_id)
         format.
-
-        Currently it's mixed - some items are according to this format,
-        previous, old data, is just without padding zeros.
-
-        Need to find out whether it's possible to update key on a datastore
-        items, probably have to read the item and re-save under modified key:
-        read all items one by one, delete and store under new key.
 
         """
         # the order should be the same as BuildsStatistics.name, BuildsStatistics.ts
@@ -160,6 +150,14 @@ class RequestHandler(BaseRequestHandler):
         for b in builds:
             self.response.out.write(b)
             self.response.out.write("<br />")
+
+    def migrate(self, start="01", end=None):
+        """
+        Should we even need, start, end would be migrations indexes to
+        run.
+
+        """
+        migrate_01()
 
 
 # adjust logging
@@ -205,6 +203,10 @@ routes = [
         Route(r"/builds",
               handler="main.RequestHandler:print_builds",
               name="print_builds",
+              methods=["GET", ]),
+        Route(r"/migrate",
+              handler="main.RequestHandler:migrate",
+              name="migrate",
               methods=["GET", ])
     ])
 ]
