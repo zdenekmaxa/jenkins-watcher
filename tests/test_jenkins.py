@@ -11,6 +11,7 @@ import setup
 
 from google.appengine.ext import testbed, deferred
 from google.appengine.api import memcache
+import pytest
 
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel

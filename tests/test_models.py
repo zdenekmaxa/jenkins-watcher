@@ -9,7 +9,6 @@ import setup
 import datetime
 
 from google.appengine.ext import testbed
-from google.appengine.api import memcache
 
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel

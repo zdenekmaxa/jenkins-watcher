@@ -132,7 +132,7 @@ class RequestHandler(BaseRequestHandler):
 
         """
         t_start = datetime.datetime.now()
-        query = BuildsStatisticsModel.query()
+        query = BuildsStatisticsModel.query().order(-BuildsStatisticsModel.key)
         builds = query.fetch()
 
         t_end = datetime.datetime.now()

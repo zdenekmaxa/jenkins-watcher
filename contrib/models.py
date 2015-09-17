@@ -107,7 +107,8 @@ class ActivitySummaryModel(ndb.Model):
 
 
 class BuildsStatisticsModel(ndb.Model):
-    # key id will be job name (i.e. jenkins project name) + build id: 'build_name-build_id'
+    # key id will be job name (i.e. jenkins project name) + build id: 'build_name-build_id',
+    # particularly: "%s-%010d" % (job_name, build_id)
     name = ndb.StringProperty(default="")
     bid = ndb.IntegerProperty(default=0)
     status = ndb.StringProperty(default="")
@@ -138,6 +139,10 @@ class BuildsStatisticsModel(ndb.Model):
     # raise _ToDatastoreError(err) BadRequestError: queries inside transactions must have ancestors
     #@ndb.transactional()
     def get_builds_data(days_limit=1):
+        """
+        Return the builds statistics data displayed on the page.
+
+        """
         mem_builds = memcache.get(MEMCACHE_BUILDS_KEY)
         if mem_builds and (days_limit in mem_builds):
             log.debug("Taking builds stats data from memcache (days_limit: %s) ..." % days_limit)
@@ -146,38 +151,24 @@ class BuildsStatisticsModel(ndb.Model):
             return data
         log.debug("Builds stats data not in memcache, querying datastore "
                   "(days_limit: %s) ..." % days_limit)
-
-        cond = datetime.datetime.utcnow() - datetime.timedelta(days=days_limit)
-        # order should be the same as BuildsStatistics.name, BuildsStatistics.ts
+        now = datetime.datetime.utcnow()
+        log.debug("Builds stats reading from data store begins: %s" % now)
+        time_condition = now - datetime.timedelta(days=days_limit)
+        # the order should be the same as BuildsStatistics.name, BuildsStatistics.ts
         # this will already be ordered by job name and then by build id (since keys are such)
         # now do reverse order so that newest appear first on the webpage
-        query = BuildsStatisticsModel.query().order(-BuildsStatisticsModel.key)
-        builds = query.fetch()  # returns list of builds, of BuildsStatistics objects
+        query = BuildsStatisticsModel.query(BuildsStatisticsModel.ts > time_condition)
+        builds = sorted(query.fetch(), key=lambda x: x.key, reverse=True)
+        log.debug("Builds stats reading from data store finish: %s" % datetime.datetime.utcnow())
+        # now have to do ordering by BuildsStatisticsModel.key, reverse
 
-        # BadRequestError: The first sort property must be the same as the property to which the
-        # inequality filter is applied.
-        # In your query the first sort property is name but the inequality filter is on ts
-        # -> do the timestamp filtering on my own ... (can't combine ordering and filtering
-        # arbitrarily)
-
-        # TODO
-        # do filtering by datastore
-        # this way all data is read (takes long and quota is immediately exceeded)
-        # and ordering on my own
-        # this method needs to be reimplemented, this is also answer to the slowness
-
-        # free read quota is just 50k operations, with ~10k of builds in datastore, it's
-        # easy to exceed
-
+        # result return data structure
         data = dict(days_limit=days_limit,
                     num_builds=0,
                     builds={})
         # builds - dict keys - job names ; values: lists of all builds under that job name
         res_builds = {}
         for b in builds:
-            # check if the build is not before days_limit days
-            if b.ts < cond:
-                continue
             res_build = copy.deepcopy(b.to_dict())
             # remove the job name from each build
             del res_build["job_name"]
@@ -197,6 +188,7 @@ class BuildsStatisticsModel(ndb.Model):
             memcache.set(MEMCACHE_BUILDS_KEY, {days_limit: data})
         log.debug("Stored builds stats data in memcache (days_limit: %s)." % days_limit)
         data["current_time"] = get_current_timestamp_str()
+        log.debug("Returning builds data at: %s" % datetime.datetime.utcnow())
         return data
 
     @staticmethod
