@@ -138,8 +138,9 @@ class RequestHandler(BaseRequestHandler):
         time_condition = now - datetime.timedelta(days=1)
         # select only last day builds
         query = BuildsStatisticsModel.query(BuildsStatisticsModel.ts > time_condition)
+
         # reverse sort
-        builds = sorted(query.fetch(), key=lambda x: x.key, reverse=True)
+        builds = sorted(query.fetch(keys_only=True), key=lambda x: x.key, reverse=True)
 
         t_end = datetime.datetime.now()
         msg = "Current time: %s<br/>" % datetime.datetime.now()
@@ -155,9 +156,24 @@ class RequestHandler(BaseRequestHandler):
         """
         Should we even need, start, end would be migrations indexes to
         run.
+        start, end - migrations indexes
+
+        Run as
+        https://jenkins-watcher.appspot.com/datastore/migrate?jenkins_project_name=Selenium_Portal_MTV_topic_selenium_sandbox&start_bid=100&stop_bid=1700
 
         """
-        migrate_01()
+        jenkins_project_name = self.request.get("jenkins_project_name", None)
+        start_bid = self.request.get("start_bid", None)
+        stop_bid = self.request.get("stop_bid", None)
+        if jenkins_project_name is None or start_bid is None or stop_bid is None:
+            self.response.out.write("Some arguments not provided.<br />");
+            self.response.out.write("Run as https://jenkins-watcher.appspot.com/datastore/migrate?jenkins_project_name=Selenium_Portal_MTV_topic_selenium_sandbox&start_bid=100&stop_bid=1700")
+        else:
+            deferred.defer(migrate_01,
+                           project_name=jenkins_project_name,
+                           start_bid=start_bid,
+                           stop_bid=stop_bid)
+            self.response.out.write("Background migration task started, check logs ...")
 
 
 # adjust logging

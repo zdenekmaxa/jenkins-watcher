@@ -1,7 +1,7 @@
 cron:
 - description: Retrieve overview data about running jobs, checks duration in execution (stops if taking too long)
   url: /overview/update
-  schedule: every 10 minutes
+  schedule: every 20 minutes
 
 - description: Retrieve information about finished builds from the Jenkins CI server (statistics)
   url: /builds/update
