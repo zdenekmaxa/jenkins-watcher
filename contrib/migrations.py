@@ -14,14 +14,31 @@ def migrate_01(project_name=None, start_bid=None, stop_bid=None):
     Previous key id was name-build_id without padding zeros.
     Current key id format is: "%s-%015d" % (job_name, build_id)
 
-    Done migrations on projects (2015-09-22):
+    Done migrations on projects (2015-09-23):
+
+        [remains two upmost development jenkins projects and projects excluded currently]
+
+        Selenium_Portal_MTV_master_public
+        Selenium_Portal_MTV_master_sandbox
+        Selenium_Portal_MTV_staging_public
+        Selenium_Portal_MTV_staging_sandbox
+        Selenium_Portal_MTV_topic_selenium_public
         Selenium_Portal_MTV_topic_selenium_sandbox
+
+        all TN done
         Selenium_Portal_TN_topic_selenium_public
         Selenium_Portal_TN_staging_public
+        Selenium_Portal_TN_master_public
+        Selenium_Portal_TN_development_public
+
+
 
         TODO:
-        check and migrate also jenkins projects which are no longer
+        1) check and migrate also jenkins projects which are no longer
             daily processed (master CI)
+        2) have a query for check for types of jenkins projects (names)
+            and how many items are in the datastore in total
+
 
     """
     log.debug("Start of migration method ...")
