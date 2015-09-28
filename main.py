@@ -41,6 +41,7 @@ import webapp2
 from webapp2 import Route, WSGIApplication
 from webapp2_extras.routes import PathPrefixRoute
 from google.appengine.ext import deferred
+from google.appengine.ext import db
 
 from contrib.jenkins import JenkinsInterface, get_jenkins_instance, initialization
 from contrib.models import OverviewModel, ActivitySummaryModel, BuildsStatisticsModel
@@ -130,6 +131,11 @@ class RequestHandler(BaseRequestHandler):
         BuildsStatisticsModel key ids) to "%s-%015d" % (job_name, build_id)
         format.
 
+        2015-09-28 there is new interesting datastore quota now:
+            Datastore Small Operations
+
+        currently items: Retrieved builds from datastore: 14886
+
         """
         # the order should be the same as BuildsStatistics.name, BuildsStatistics.ts
         # this will already be ordered by job name and then by build id (since keys are such)
@@ -137,10 +143,11 @@ class RequestHandler(BaseRequestHandler):
         now = datetime.datetime.utcnow()
         time_condition = now - datetime.timedelta(days=1)
         # select only last day builds
-        query = BuildsStatisticsModel.query(BuildsStatisticsModel.ts > time_condition)
+        #query = BuildsStatisticsModel.query(BuildsStatisticsModel.ts > time_condition)
+        query = BuildsStatisticsModel.query()
 
-        # reverse sort
-        builds = sorted(query.fetch(keys_only=True), key=lambda x: x.key, reverse=True)
+        # reverse sort, fetches only datastore key objects
+        builds = sorted(query.fetch(keys_only=True), key=lambda x: x.id(), reverse=True)
 
         t_end = datetime.datetime.now()
         msg = "Current time: %s<br/>" % datetime.datetime.now()
@@ -148,8 +155,22 @@ class RequestHandler(BaseRequestHandler):
         msg += "Retrieved builds from datastore: %s<br/><br/>" % len(builds)
         self.response.out.write(msg)
         self.response.out.write("<br /><br />")
-        for b in builds:
-            self.response.out.write(b)
+        # do this only if there is a days=something limit applied, it's otherwise very
+        # many of items
+        #for b in builds:
+        #    self.response.out.write(b)
+        #    self.response.out.write("<br />")
+
+        # DOESN'T WORK ON NDB:
+        #q = "SELECT DISTINCT name FROM BuildsStatisticsModel;"
+        #query = db.GqlQuery(q)
+
+        # can't continue - ran out of quota now
+        query = BuildsStatisticsModel.query(projection=[BuildsStatisticsModel.name],
+                                            distinct=True)
+        names = query.fetch()
+        for n in names:
+            self.response.out.write(n)
             self.response.out.write("<br />")
 
     def migrate(self, start="01", end=None):
