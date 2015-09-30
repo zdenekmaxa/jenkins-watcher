@@ -16,7 +16,11 @@ verbosity=warning
 # appid = jenkins-watcher
 # version is no longer part of the app.yaml but specified
 # explicitly on CLI
+
 gcloud preview app deploy ./app.yaml --project $appid --version $version --verbosity $verbosity
+# when updating datastore indixes
+#gcloud preview app deploy ./index.yaml --project $appid --version $version --verbosity $verbosity
+
 # localhost run: gcloud preview app run .
 
 # start on localhost:

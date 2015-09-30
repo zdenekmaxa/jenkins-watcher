@@ -136,6 +136,8 @@ class RequestHandler(BaseRequestHandler):
 
         currently items: Retrieved builds from datastore: 14886
 
+        consumes Datastore Small Operations Quota a lot!
+
         """
         # the order should be the same as BuildsStatistics.name, BuildsStatistics.ts
         # this will already be ordered by job name and then by build id (since keys are such)
@@ -161,16 +163,18 @@ class RequestHandler(BaseRequestHandler):
         #    self.response.out.write(b)
         #    self.response.out.write("<br />")
 
+        # get distinct jenkins projects names:
         # DOESN'T WORK ON NDB:
         #q = "SELECT DISTINCT name FROM BuildsStatisticsModel;"
         #query = db.GqlQuery(q)
 
-        # can't continue - ran out of quota now
         query = BuildsStatisticsModel.query(projection=[BuildsStatisticsModel.name],
                                             distinct=True)
-        names = query.fetch()
-        for n in names:
-            self.response.out.write(n)
+        # fetches
+        # BuildsStatisticsModel(key=Key('BuildsStatisticsModel', 'Selenium_Portal_MTV_development_public-000000000001013'), name=u'Selenium_Portal_MTV_development_public', _projection=('name',))
+        build_keys = query.fetch()
+        for key in build_keys:
+            self.response.out.write(key)
             self.response.out.write("<br />")
 
     def migrate(self, start="01", end=None):

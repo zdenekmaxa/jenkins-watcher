@@ -16,18 +16,6 @@ def migrate_01(project_name=None, start_bid=None, stop_bid=None):
 
     Done migrations on projects - all currently visible done.
 
-        TODO:
-        1) check and migrate also jenkins projects which are no longer
-            daily processed (master CI), but first: ->
-        2) have a query for check for types of jenkins projects (names)
-            and how many items are in the datastore in total
-
-        MIGRATE THESE:
-            Selenium_Portal_development_public
-            Selenium_Portal_master_public
-            Selenium_Portal_staging_public
-            Selenium_Portal_topic_selenium_public
-
     """
     log.debug("Start of migration method ...")
 
