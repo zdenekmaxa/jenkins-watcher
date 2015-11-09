@@ -12,6 +12,7 @@ import re
 
 import pytz
 from jenkinsapi.jenkins import Jenkins
+from jenkinsapi.custom_exceptions import UnknownJob
 
 from google.appengine.ext import deferred
 from google.appengine.api import memcache
@@ -153,8 +154,12 @@ class JenkinsInterface(object):
         """
         resp = []
         for job_name in self.job_names:
-            job = self.server.get_job(job_name)
-            running = job.is_running()
+            try:
+                job = self.server.get_job(job_name)
+                running = job.is_running()
+            except UnknownJob:
+                log.warn("Jenkins project '%s' unknown by the server." % job_name)
+                continue
             log.info("Checking job '%s', running: %s." % (job_name, running))
             if running:
                 r = dict()
@@ -271,7 +276,11 @@ class JenkinsInterface(object):
         """
         log.info("Start update builds stats at '%s'" % get_current_timestamp_str())
         for job_name in self.job_names:
-            job = self.server.get_job(job_name)
+            try:
+                job = self.server.get_job(job_name)
+            except UnknownJob:
+                log.warn("Jenkins project '%s' unknown by the server." % job_name)
+                continue
             # returns iterator of available build id numbers in
             # reverse order, most recent first
             bids = job.get_build_ids()
