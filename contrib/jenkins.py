@@ -41,9 +41,9 @@ SECOND_ITERATION_PATTERNS = ((re.compile("[0-9]+ passed"), "passed"),
 class JenkinsInterface(object):
 
     # soft threshold -  email will be send
-    current_build_duration_threshold_soft = 40  # minutes
+    current_build_duration_threshold_soft = 60  # minutes
     # hard threshold - the build is really getting canceled
-    current_build_duration_threshold_hard = 50  # minutes
+    current_build_duration_threshold_hard = 70  # minutes
     # wait this timeout when stopping a build
     stop_build_timeout = 10  # seconds
     # builds statistics history, go back this history on builds init
