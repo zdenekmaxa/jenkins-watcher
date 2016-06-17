@@ -250,7 +250,11 @@ class JenkinsInterface(object):
         for cp in FIRST_ITERATION_PATTERNS:
             result_line = cp.findall(console_output)
             if result_line:
-                assert len(result_line) == 1
+                if len(result_line) != 1:
+                    # there is 0 or more these results lines (which are
+                    # py.test format), in this case, don't calculate passed,
+                    # failed, etc test cases
+                    return None
                 # get  1) passed  2) failed  3) skipped  4) error  5) duration
                 result = {}
                 for cp2, what in SECOND_ITERATION_PATTERNS:
