@@ -82,7 +82,7 @@ class TestJenkins(TestBase):
             "Selenium_Portal_topic_selenium_public-346-console.txt": {'failed': 6, 'skipped': 5, 'passed': 22, 'error': 0},
             "Selenium_Portal_topic_selenium_public-364-console.txt": {'failed': 1, 'skipped': 5, 'passed': 27, 'error': 1},
             "Selenium_Portal_topic_selenium_public-371-console.txt": {'failed': 0, 'skipped': 5, 'passed': 28, 'error': 0},
-            "ROS_CMS_docker_selenium_master-1000-console.txt": {'failed': 0, 'skipped': 0, 'passed': 0, 'error': 0}
+            "ROS_CMS_docker_selenium_master-1000-console.txt": {'failed': 0, 'skipped': 0, 'passed': 0, 'error': 7}
         }
         data_dir = os.path.join(os.path.dirname(__file__), "data")
         for console in os.listdir(data_dir):
