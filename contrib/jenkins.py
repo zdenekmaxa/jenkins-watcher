@@ -31,7 +31,8 @@ from contrib.models import ACTIVITY_SUMMARY_MODEL_ID_KEY, MEMCACHE_BUILDS_KEY
 # don't do passed|failed|skipped - matches something else
 FIRST_ITERATION_PATTERNS = (re.compile("=+ .*[0-9]+ passed.* in .* seconds =+"),
                             re.compile("=+ .*[0-9]+ failed.* in .* seconds =+"),
-                            re.compile("=+ .*[0-9]+ skipped.* in .* seconds =+"))
+                            re.compile("=+ .*[0-9]+ skipped.* in .* seconds =+"),
+                            re.compile("=+ .*[0-9]+ error.* in .* seconds =+"))
 SECOND_ITERATION_PATTERNS = ((re.compile("[0-9]+ passed"), "passed"),
                              (re.compile("[0-9]+ failed"), "failed"),
                              (re.compile("[0-9]+ skipped"), "skipped"),
