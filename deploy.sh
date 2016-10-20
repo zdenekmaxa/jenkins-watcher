@@ -17,11 +17,11 @@ verbosity=warning
 # version is no longer part of the app.yaml but specified
 # explicitly on CLI
 
-gcloud preview app deploy ./app.yaml --project $appid --version $version --verbosity $verbosity
+gcloud app deploy ./app.yaml --project $appid --version $version --verbosity $verbosity
 # when updating datastore indixes
-#gcloud preview app deploy ./index.yaml --project $appid --version $version --verbosity $verbosity
+#gcloud app deploy ./index.yaml --project $appid --version $version --verbosity $verbosity
 
-# localhost run: gcloud preview app run .
+# localhost run: gcloud app run .
 
 # start on localhost:
 # $PREFIX/platform/google_appengine/dev_appserver.py .
